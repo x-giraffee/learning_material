@@ -1,0 +1,320 @@
+C51 COMPILER V8.16   MENU                                                                  12/15/2008 14:30:11 PAGE 1   
+
+
+C51 COMPILER V8.16, COMPILATION OF MODULE MENU
+OBJECT MODULE PLACED IN .\Obj\Menu.obj
+COMPILER INVOKED BY: d:\Keil\C51\BIN\C51.EXE Src\Menu.C BROWSE DEBUG OBJECTEXTEND PRINT(.\Lst\Menu.lst) OBJECT(.\Obj\Men
+                    -u.obj)
+
+line level    source
+
+   1          #include "CPU.H"
+   2          #include "Menu.H"
+   3          
+   4          #include "PIC.C"//Í¼±ê
+   5          /*
+   6          ----------------------------------------------------------------------------
+   7          ²Ëµ¥Ïà¹Ø±äÁ¿
+   8          ----------------------------------------------------------------------------
+   9          */
+  10          
+  11          U8 Flash = 0;               //Ìø×ª½øÈë×Ó²Ëµ¥ Ë¢ÐÂ±êÖ¾  >1Ë¢ÐÂ
+  12          U8 language = EN;           //ÓïÑÔ±êÖ¾
+  13          U8 KeyFuncIndex = 0;        //Ë÷Òý
+  14          //3¸ö±¸·ÝÊý×é
+  15          U8 FatherIndex[MenuSize+1]; //¸¸²Ëµ¥±¸·ÝÊý×é
+  16          U8 Layer = 0;               //²Ëµ¥²ãÊý
+  17          
+  18          U8 ItemBackup[MenuSize];      //µ±Ç°²Ëµ¥Ïî±¸·Ý
+  19          U8 ItemBackup_i = 0;          //
+  20          
+  21          U8 WhereBackup[MenuSize];     //·´ÏÔÎ»ÖÃ±¸·Ý
+  22          U8 WhereBackup_i = 0;         //
+  23          
+  24          
+  25          U8 KeyPressCount = 0;               //ÓÃÓÚ°æ±¾ÏÔÊ¾
+  26          
+  27          #ifdef DynamicBar
+              U8 BarDataMode = FixedData;
+              #endif
+  30          
+  31          
+  32          U8 Item;            //µ±Ç°BarÏî  ·¶Î§:[0,ItemNum-1]  °üÀ¨0 °üÀ¨ItemNum-1  ¹²°üÀ¨ItemNum¸öÈ¡Öµ
+  33          U8 ItemNum;         //BarÏîÊý
+  34          U8 Where;           //µ±Ç°·´ÏÔÎ»ÖÃ,[0,DispMax-1]  ·´Ó³·´ÏÔµÄBarÔÚÆÁÄ»ÉÏµÄÎ»ÖÃ
+  35          //U8 DispMax = 3;     //µ¥ÆÁ¿ÉÒÔÏÔÊ¾µÄ×î´óÏî Í¨³£ÕâÊÇ¸ö¹Ì¶¨Öµ--ÒòÎªÄãµÄÒº¾§µÄ´óÐ¡¾ö¶¨ÁËÄãÒ»´Î¿ÉÒÔÏÔÊ¾µÄ¶àÉ
+             -Ù,ÄãÒ²¿ÉÒÔÔÚ³ÌÐòÖÐÐÞ¸Ä,µ«¼ÇµÃÎ¬»¤Ëü--ÒòÎªËùÓÐµÄBarÐÍ²Ëµ¥¶¼ÊÇÒªÓÃµ½ËüµÄ
+  36          #define DispMax  3
+  37          
+  38          U8 DispMin;         //ItemNumºÍDispMaxÖÐµÄÐ¡Õß
+  39          //µ±Ç°BarÏÔÊ¾ÄÚÈÝÖ¸Õë
+  40          //U8 _CONST_ **DispItem; //ÏîÏÔÊ¾ÄÚÈÝÖ¸Õë
+  41          U8 **DispItem; //ÏîÏÔÊ¾ÄÚÈÝÖ¸Õë
+  42          
+  43          #ifdef DynamicBar
+              U8 ** DynamicBarDispItem; //¶¯Ì¬ÏîÏÔÊ¾ÄÚÈÝÖ¸Õë
+              #endif
+  46          
+  47          //²Ëµ¥×ÊÔ´Ö¸Õë
+  48          struct Menu * BarMenu;
+  49          //TipÖ¸Õë
+  50          struct Menu * TipBar;
+  51          
+  52          
+  53          /*
+C51 COMPILER V8.16   MENU                                                                  12/15/2008 14:30:11 PAGE 2   
+
+  54          ----------------------------------------------------------------------------
+  55                |---->Ö¸Õë¶ÔÏó´æ·ÅµØÖ·,Ò²¾ÍÊÇ{"Function"},{"Parameter"},{"Measure"},µÈµÈÕâÐ©ÎÄ±¾´æ·ÅÔÚÄÄÀï
+  56                |         |---->Ö¸Õë´æ·ÅµÄÎ»ÖÃ,ÊÇÕâÐ©×Ö·ûµÄÊ×µØÖ·Ó¦µ±´æ·ÅÔÚÄÄÀï  ÒòÎªÕâÊÇ¸öÖ¸ÕëÊý×é´æ·ÅµÄÄÚÈÝ¾ÍÊÇÃ¿¸
+             -ö×Ö·û´®µÄ¿ªÊ¼µØÖ·
+  57                |         |
+  58          U8 _CONST_ * _CONST_ TopItemEN[]=
+  59          {
+  60          {"Function"},
+  61          {"Parameter"},
+  62          {"Measure"},
+  63          {"Language"},
+  64          {"Test"},
+  65          };
+  66          ÎÒÃÇ¾ù°ÑÕâÐ©´æ·ÅÔÚ´úÂëÇø,ÒÔ¼õÉÙ¶ÔRAMµÄÕ¼ÓÃ
+  67          
+  68          ----------------------------------------------------------------------------
+  69          */
+  70          
+  71          
+  72          //---------------------------------------------------
+  73          //¸÷¸ö²Ëµ¥µÄ×ÊÔ´
+  74          //ÃüÃû·½Ê½ÊÇ:
+  75          //---------------------------------------------------
+  76          //¶¥²ã²Ëµ¥
+  77          
+  78          
+  79          //U8 _CONST_ * _CONST_ TopItemCN[]=
+  80          U8 * _CONST_ TopItemCN[]=
+  81          {
+  82          {"¹¦ÄÜ"},
+  83          {"²ÎÊý"},
+  84          {"²âÁ¿"},
+  85          {"ÓïÑÔ"},
+  86          {"²âÊÔ"},
+  87          };
+  88          
+  89          
+  90          //U8 _CONST_ * _CONST_ TopItemEN[]=
+  91          U8 * _CONST_ TopItemEN[]=
+  92          {
+  93          {"Function"},
+  94          {"Parameter"},
+  95          {"Measure"},
+  96          {"Language"},
+  97          {"Test"},
+  98          };
+  99          
+ 100          
+ 101          //"¹¦ÄÜ"²Ëµ¥ÏîµÄÄÚÈÝºÍ³¤¶È
+ 102          
+ 103          //U8 _CONST_ * _CONST_ FuncItemCN[]=
+ 104          U8 * _CONST_ FuncItemCN[]=
+ 105          {
+ 106          {"¶Á³öÊý¾Ý"},
+ 107          {"±³¹â¿ØÖÆ"},
+ 108          {"³ö³§ÉèÖÃ"},
+ 109          {"ÐÞ¸ÄÃÜÂë"},
+ 110          
+ 111          };
+ 112          
+ 113          //U8 _CONST_ * _CONST_ FuncItemEN[]=
+ 114          U8 * _CONST_ FuncItemEN[]=
+C51 COMPILER V8.16   MENU                                                                  12/15/2008 14:30:11 PAGE 3   
+
+ 115          {
+ 116          {"Read Data"},
+ 117          {"BackLight"},
+ 118          {"Factory Set"},
+ 119          {"Change CODE"}
+ 120          };
+ 121          //"²ÎÊý"²Ëµ¥ÏîµÄÄÚÈÝºÍ³¤¶È
+ 122          
+ 123          //U8 _CONST_ * _CONST_ ParaItemCN[]=
+ 124          U8 * _CONST_ ParaItemCN[]=
+ 125          {
+ 126          {"ãÐÖµ"},
+ 127          {"ËÀÊ±¼äT"},
+ 128          {"ÁéÃô¶ÈK"},
+ 129          {"²âÁ¿Ê±¼ä"}
+ 130          };
+ 131          
+ 132          //U8 _CONST_ * _CONST_ ParaItemEN[]=
+ 133          U8 * _CONST_ ParaItemEN[]=
+ 134          {
+ 135          {"Menu0"},
+ 136          {"Menu1"},
+ 137          {"Menu2"},
+ 138          {"Menu3"},
+ 139          {"Menu4"},
+ 140          {"Menu5"},
+ 141          {"Menu6"},
+ 142          {"Menu7"},
+ 143          };
+ 144          //"ÓïÑÔ"²Ëµ¥ÏîµÄÄÚÈÝºÍ³¤¶È
+ 145          
+ 146          //U8 _CONST_ * _CONST_ LanguageItemCN[]=
+ 147          U8 * _CONST_ LanguageItemCN[]=
+ 148          {
+ 149          {"ÖÐÎÄ"},
+ 150          {"English"},
+ 151          };
+ 152          
+ 153          //U8 _CONST_ * _CONST_ LanguageItemEN[]=
+ 154          U8 * _CONST_ LanguageItemEN[]=
+ 155          {
+ 156          {"ÖÐÎÄ"},
+ 157          {"English"},
+ 158          };
+ 159          
+ 160          
+ 161          //²âÁ¿
+ 162          
+ 163          //U8 _CONST_ * _CONST_ MeasureItemCN[]=
+ 164          U8 * _CONST_ MeasureItemCN[]=
+ 165          {
+ 166          {"¼ì²âÉÏÀ­µç×è"},
+ 167          {"Çå¿Õ³ö´í¼ÇÂ¼"},
+ 168          {"ÔÚÏßÃüÁî"},
+ 169          {"ÊäÈë¿Ú²âÊÔ"},
+ 170          {"Ä£ÄâÖ÷Öá²âÊÔ"},
+ 171          {"ÖáÐÅºÅ²âÊÔ"},
+ 172          {"¼ÌµçÆ÷²âÊÔ"},
+ 173          };
+ 174          
+ 175          //U8 _CONST_ * _CONST_ MeasureItemEN[]=
+ 176          U8 * _CONST_ MeasureItemEN[]=
+C51 COMPILER V8.16   MENU                                                                  12/15/2008 14:30:11 PAGE 4   
+
+ 177          {
+ 178          {"PushUp Res"},
+ 179          {"ClearErrCount"},
+ 180          {"OnlineCMD "},
+ 181          {"SysInputTest"},
+ 182          {"SVC TEST"},
+ 183          {"AXis TEST"},
+ 184          {"Relay TEST"},
+ 185          };
+ 186          //ÌáÊ¾¼üµÄÎÄ±¾
+ 187          
+ 188          //U8 _CONST_ * _CONST_ TipCN[]=
+ 189          U8 * _CONST_ TipCN[]=
+ 190          {
+ 191          {"Menu"},
+ 192          {"Ñ¡Ôñ"},
+ 193          {"È·ÈÏ"},
+ 194          {"È¡Ïû"},
+ 195          {"?È·ÈÏ?"},
+ 196          };
+ 197          
+ 198          
+ 199          
+ 200          //U8 _CONST_ * _CONST_ TipEN[]=
+ 201          U8 * _CONST_ TipEN[]=
+ 202          {
+ 203          {"Menu"},
+ 204          {"Select"},
+ 205          {"Ok"},
+ 206          {"Cancel"},
+ 207          {"? OK ?"},
+ 208          };
+ 209          
+ 210          //----------------------------------------
+ 211          //ºê¶¨Òå:
+ 212          
+ 213          #define MenuWhat(n) {(U8 **)n,(sizeof(n)/sizeof(U8 *)),0}
+ 214          //Í¼±ê²ã
+ 215          _CONST_ struct Menu IcoMenu[] =
+ 216          {
+ 217          MenuWhat(TopItemCN),
+ 218          MenuWhat(TopItemEN),
+ 219          };
+ 220          
+ 221          //¹¦ÄÜ²Ëµ¥
+ 222          _CONST_ struct Menu MenuFunc[] =
+ 223          {
+ 224          MenuWhat(FuncItemCN),
+ 225          MenuWhat(FuncItemEN),
+ 226          };
+ 227          //²ÎÊý²Ëµ¥
+ 228          _CONST_ struct Menu MenuPara[] =
+ 229          {
+ 230          MenuWhat(ParaItemCN),
+ 231          MenuWhat(ParaItemEN),
+ 232          };
+ 233          //²âÁ¿²Ëµ¥
+ 234          _CONST_ struct Menu MenuMeasure[] =
+ 235          {
+ 236          MenuWhat(MeasureItemCN),
+ 237          MenuWhat(MeasureItemEN),
+ 238          };
+C51 COMPILER V8.16   MENU                                                                  12/15/2008 14:30:11 PAGE 5   
+
+ 239          
+ 240          //ÓïÑÔ²Ëµ¥
+ 241          _CONST_ struct Menu MenuLanguage[] =
+ 242          {
+ 243          MenuWhat(LanguageItemCN),
+ 244          MenuWhat(LanguageItemEN),
+ 245          };
+ 246          
+ 247          //Tip
+ 248          _CONST_ struct Menu Tip[] =
+ 249          {
+ 250          MenuWhat(TipCN),
+ 251          MenuWhat(TipEN),
+ 252          };
+ 253          
+ 254          
+ 255          //¸ü¸ÄÃÜÂëÊ±Ñ¯ÎÊµÄÍ¼±êË÷ÒýºÅ
+ 256          #define WarningICO  5
+ 257          #define PassICO     0
+ 258          //Í¼±êË÷Òý
+ 259          U8 _CONST_ * _CONST_ icos[]=
+ 260          {
+ 261           Function,   //¹¦ÄÜ
+ 262           Para,       //²ÎÊý
+ 263           Time,       //Ê±ÖÓ
+ 264           Action,     //²âÁ¿
+ 265           Menu,       //ÓïÑÔ
+ 266           Question,   //Ñ¯ÎÊ
+ 267           Warning,
+ 268           Sound,
+ 269          };
+ 270          
+ 271          
+ 272          //Ìø×ªµ½Ö¸¶¨²Ëµ¥
+ 273          /*
+ 274          void Jump2Menu(U8 Index)
+ 275          {
+ 276              KeyFuncIndex = Index;             //jump to Menu index
+ 277          }
+ 278          */
+ 279          void Jump2Menu(U8 Index,U8 FlashMode)
+ 280          {
+ 281   1          KeyFuncIndex = Index;             //jump to Menu index
+ 282   1          if(FlashMode){
+ 283   2              Flash = FlashMode;
+ 284   2          }
+ 285   1      }
+ 286          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =      8    ----
+   CONSTANT SIZE    =   2896    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     33    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

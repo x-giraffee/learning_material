@@ -1,0 +1,90 @@
+实验预习：
+
+C语言的位操作指令：
+逻辑：&& || ！   << >> |=(置位) &=~(清位)
+无符号：|~&^
+有符号：|~&^
+
+写出汇编语言下的位操作指令：
+逻辑运算：
+	NEG(取负):  NEG	D=D<--D
+	NOT(取反): NOT	D=D<-~D
+	XOR(异或): XOR	S,D=D<-D^S
+	OR(或):       OR	S,D=D<-D|S
+	AND(且):	  AND	S,D=D<-D&S
+	SAL(算术左移):SAL	k,D=D<-D<<k
+	SHL(逻辑左移):SHL	k,D=D<-D<<k
+	SAR(算术右移):SAR	k,D=D<-D>>k
+	SHR(逻辑右移):SHR	k,D=D<-D>>k
+
+循环移位指令：
+;ROL(Rotate Left):                循环左移
+;ROR(Rotate Right):               循环右移
+;RCL(Rotate through Carry Left):  带进位循环左移
+;RCR(Rotate through Carry Right): 带进位循环右移
+
+;ROL: 循环左移, 高位到低位并送 CF
+;ROR: 循环右移, 低位到高位并送 CF
+;RCL: 循环左移, 进位值(原CF)到低位, 高位进 CF
+;RCR: 循环右移, 进位值(原CF)到高位, 低位进 CF
+
+;它们的结果影响 OF、CF
+;它们的指令格式相同:
+SHL r/m, i8
+SHL r/m, CL
+
+无符号：
+有符号：
+	SAR(算术右移):SAR	k,D=D<-D>>k
+测试，位测试BTx:
+
+条件传送CMOVxx:(汇编器可以从寄存器大小自动判断操作数长度，所以所殴打操作数长度都可以使用同一个指令名）
+		cmove	S,R	相等/零
+		cmovne	S,R	不相等/非零
+
+		cmovs	S,R	负数
+		cmovns	S,R	非负数
+
+	cmovg(cmovnle)	S,R	大于/不小于等于（有符号）
+	cmovge(cmovnl)	S,R	大于或等于/不小于（有符号）
+
+	cmovl(cmovnge)	S,R	小于/不大于等于（有符号）
+	cmovle(cmovng)	S,R	小于或等于/不大于（有符号）
+
+	cmova(cmovnbe)	S,R	超过/小于或者不等于（无符号）
+	cmovae(cmovnb)	S,R	超过或相等/不小于（无符号）
+
+	cmovb(cmovnae)	S,R	低于/不大于（无符号）
+	cmovbe(cmovna)	S,R	低于或等于/不大于（无符号）
+
+	cmovo			溢出
+	cmovno			未溢出
+
+	cmovp/cmovpe		奇偶校验
+
+条件设置SETxx:
+	sete(setz)		D  (同上)
+	setne(setnz)	D
+
+	sets		D
+	setns		D
+
+	setg(setnle)	D
+	setge(setnl)	D
+
+	setl(setnge)	D
+	setle(setng)	D
+
+	seta(setnbe)	D
+	setae(setnb)	D
+
+	setb(setnae)	D
+	setbe(setna)	D
+进位位操作 (CF):??
+
+
+
+
+
+
+

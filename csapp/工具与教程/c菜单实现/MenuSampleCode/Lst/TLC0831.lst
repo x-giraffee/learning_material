@@ -1,0 +1,69 @@
+C51 COMPILER V7.20   TLC0831                                                               08/04/2007 17:20:10 PAGE 1   
+
+
+C51 COMPILER V7.20, COMPILATION OF MODULE TLC0831
+OBJECT MODULE PLACED IN .\Obj\TLC0831.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE Src\TLC0831.C LARGE BROWSE DEBUG OBJECTEXTEND PRINT(.\Lst\TLC0831.lst) OBJE
+                    -CT(.\Obj\TLC0831.obj)
+
+line level    source
+
+   1          #include "CPU.H"
+   2          
+   3          void delay1(U8 x)
+   4          {
+   5   1          U8 i;
+   6   1          for(i = 0;i < x; i++){
+   7   2      
+   8   2          }
+   9   1      }
+  10          void adcck(void) //时钟函数
+  11          {
+  12   1      AD_CLK=1;delay1(100);
+  13   1      AD_CLK=0;delay1(100);
+  14   1      }
+  15          
+  16          /*
+  17          *****************************************************************************
+  18          * ReadAdc - 读出TLC0831的值
+  19          * DESCRIPTION: -
+  20          *
+  21          * @Param :
+  22          * @Return : ADC的返回值
+  23          * ----
+  24          *****************************************************************************
+  25          */
+  26          U8 ReadAdc(void) //读出TLC0831转换数据函数
+  27          {
+  28   1          U8 i;
+  29   1          U8 ch;
+  30   1          nCS_AD=0;
+  31   1          adcck();
+  32   1          ch=0;
+  33   1          for( ; AD_DO == 1; ){//应当做超时检测,而不是死等
+  34   2              adcck();
+  35   2          }
+  36   1          for(i = 0; i < 8; i++){
+  37   2              adcck();
+  38   2              ch=(ch<<1)|AD_DO;
+  39   2          }
+  40   1          nCS_AD = 1;
+  41   1          return(ch); //返回值，即转换后的数据
+  42   1      }
+  43          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     63    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+C51 COMPILER V7.20   TLC0831                                                               08/04/2007 17:20:10 PAGE 2   
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

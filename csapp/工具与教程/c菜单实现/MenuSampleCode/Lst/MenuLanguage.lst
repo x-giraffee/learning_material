@@ -1,0 +1,128 @@
+C51 COMPILER V8.16   MENULANGUAGE                                                          12/15/2008 14:30:10 PAGE 1   
+
+
+C51 COMPILER V8.16, COMPILATION OF MODULE MENULANGUAGE
+OBJECT MODULE PLACED IN .\Obj\MenuLanguage.obj
+COMPILER INVOKED BY: d:\Keil\C51\BIN\C51.EXE Src\MenuLanguage.C BROWSE DEBUG OBJECTEXTEND PRINT(.\Lst\MenuLanguage.lst) 
+                    -OBJECT(.\Obj\MenuLanguage.obj)
+
+line level    source
+
+   1          /******************************************************************************
+   2           * MenuLanguage.C - 语言切换模版
+   3           *
+   4           *
+   5           * DESCRIPTION: -
+   6           *
+   7           * modification history
+   8           * --------------------
+   9           * 01a, 04/sep/2007, 梁炎昌 written
+  10           * --------------------
+  11           ******************************************************************************/
+  12          #include "CPU.H"
+  13          #include "Ks0108.H"
+  14          #include "Menu.H"
+  15          
+  16          /*
+  17          这里是语言切换界面，这里也演示了如何通过提前修改Item Where
+  18          void DispMenuLanguageInit()函数中：
+  19          －－－－－－－－－－－－－－－－－－－－－－－－－－－－－
+  20              if(Flash == FlashMode_ManualInit){//首次进入本层菜单，调整Item where
+  21                  PUSH();
+  22                  Item = language;
+  23                  Where = Item;
+  24              }
+  25          －－－－－－－－－－－－－－－－－－－－－－－－－－－－－
+  26          
+  27          */
+  28          //语言
+  29          //Bar型菜单
+  30          void DispMenuLanguageInit()
+  31          {
+  32   1      //----------------------
+  33   1          GUI_Clear();
+  34   1      //--------------------
+  35   1          //切换Bar显示内容
+  36   1      //-----------------
+  37   1          BarMenu = &MenuLanguage[language];
+  38   1          ItemNum = (*BarMenu).TextNum;
+  39   1          DispItem = (*BarMenu).Text;
+  40   1      
+  41   1          //用户的初始化代码请放在这里
+  42   1          //显示父菜单名字
+  43   1      
+  44   1          //显示按键提示          2-->OK
+  45   1      //    GUI_DispStringAt(Tip[language].Text+2*(Tip[language].TextLen),Enter_PosX,Enter_PosY);
+  46   1          GUI_DispStringAtBar(*(Tip[language].Text+2),0,Enter_PosY,126,GUI_TA_HCENTER);
+  47   1          if(Flash == FlashMode_ManualInit){//首次进入本层菜单，调整Item where
+  48   2              PUSH();
+  49   2              Item = language;
+  50   2              Where = Item;
+  51   2          }
+  52   1          //公共初始化部分
+  53   1          BarMenuInit();
+  54   1      }
+C51 COMPILER V8.16   MENULANGUAGE                                                          12/15/2008 14:30:10 PAGE 2   
+
+  55          /*
+  56          ************************************************************
+  57          *   FIXME!
+  58          *   这里是做语言切换的
+  59          *   但是这会有一个有意思的问题:
+  60          *   我们的菜单保存机制是备份过去的父菜单的Text等信息的,因此即便是更换了语言,
+  61          *   这个保存的信息依然没有被更换,就是说,在这里切换语言后,显示的父索引还是没有变
+  62          *   改正方法:
+  63          *   通常语言切换的地方就一个路径而已,因此更换语言后正确修改保存的信息...
+  64          ************************************************************
+  65          */
+  66          void DispMenuLanguageUp()
+  67          {
+  68   1      //-----------
+  69   1          PUSH();//
+  70   1      //-------------------
+  71   1          GUI_Clear();
+  72   1          if(Item==0){
+  73   2              language = CN;
+  74   2              GUI_Delay(10);
+  75   2          }else if(Item==1){
+  76   2              language = EN;
+  77   2              GUI_Delay(10);
+  78   2          }
+  79   1          GUI_Clear();
+  80   1      //-------------------
+  81   1          POP();
+  82   1      //-------------------
+  83   1      
+  84   1      }
+  85          void DispMenuLanguageDown()
+  86          {
+  87   1          POP();
+  88   1      }
+  89          void DispMenuLanguageLeft()
+  90          {
+  91   1          BarMenuLeft();
+  92   1      }
+  93          void DispMenuLanguageRight()
+  94          {
+  95   1          BarMenuRight();
+  96   1      }
+  97          
+  98          
+  99          
+ 100          
+ 101          
+ 102          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    153    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

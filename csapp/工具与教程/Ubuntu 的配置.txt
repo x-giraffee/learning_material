@@ -1,0 +1,9 @@
+怎么安装perl
+sudo apt-get install perl
+  
+怎么安装vim：
+
+sudo apt-get install vim  
+
+想编译32位C程序，需要安装32位的C库
+命令：sudo apt-get install gcc-multilib g++-multilib 

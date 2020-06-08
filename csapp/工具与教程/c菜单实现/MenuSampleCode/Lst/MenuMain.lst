@@ -1,0 +1,79 @@
+C51 COMPILER V8.16   MENUMAIN                                                              12/15/2008 14:30:11 PAGE 1   
+
+
+C51 COMPILER V8.16, COMPILATION OF MODULE MENUMAIN
+OBJECT MODULE PLACED IN .\Obj\MenuMain.obj
+COMPILER INVOKED BY: d:\Keil\C51\BIN\C51.EXE Src\MenuMain.C BROWSE DEBUG OBJECTEXTEND PRINT(.\Lst\MenuMain.lst) OBJECT(.
+                    -\Obj\MenuMain.obj)
+
+line level    source
+
+   1          /******************************************************************************
+   2           * MenuMain.C - 菜单主循环函数
+   3           *
+   4           *
+   5           * DESCRIPTION: -
+   6           *
+   7           * modification history
+   8           * --------------------
+   9           * 01a, 04/sep/2007, 梁炎昌 written
+  10           * --------------------
+  11           ******************************************************************************/
+  12          #include "CPU.H"
+  13          #include "KS0108.H"
+  14          #include "Menu.H"
+  15          #include "KeyScan.H"
+  16          
+  17          
+  18          
+  19          /*
+  20          *****************************************************************************
+  21          * MenuMainLoop - 菜单主循环
+  22          * DESCRIPTION: -
+  23          * Main函数调用该函数,本函数并不会返回
+  24          * @Para void:
+  25          * Return :
+  26          *
+  27          *****************************************************************************
+  28          */
+  29          void MenuMainLoop(void)
+  30          {
+  31   1          DispMenuTop();
+  32   1          while(1){
+  33   2              if(CheckKey()){//检查菜单
+  34   3                  GUI_Delay(800);
+  35   3              }
+  36   2              if(!KeyFuncIndex){//KeyFuncIndex为0时是待机界面
+  37   3                  //待机界面代码
+  38   3              }else{
+  39   3      
+  40   3              }
+  41   2          }
+  42   1      }
+  43          /*
+  44          如何实现中断中使用LCD?
+  45          1.中断发送消息，在上面的循环当中不断检查消息，根据消息显示。比如充电器插入后，发送了消息，
+  46          那么即便是我们原本已经在了某层菜单，当我们检查到消息后，我们PUSH当前菜单，根据消息显示提
+  47          示，而后POP，回到原来菜单。但是若是我原来已经在消息编辑状态，它又是如何工作？似乎不行
+  48          2.有显示缓冲区，中断时去使用液晶不修改缓冲区，结束后重新显示缓冲
+  49          2006/08/20  依然认为应当的实现方式是1的方法，通常在有OS的环境下，可以通过消息传递，而显示
+  50          仅仅在一个任务当中
+  51          3.2006/10/16 另外的方法是窗口切换：1。在内存中有两个显存缓冲，切换缓冲到液晶。2。利用LCD内
+  52          部自带的显存，切换显示开始地址（前提是LCD缓存足够做两个显存）
+  53          */
+
+C51 COMPILER V8.16   MENUMAIN                                                              12/15/2008 14:30:11 PAGE 2   
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     20    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

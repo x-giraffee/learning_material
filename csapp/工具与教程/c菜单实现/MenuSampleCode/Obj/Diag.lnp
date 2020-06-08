@@ -1,0 +1,13 @@
+".\Obj\Main.obj",
+".\Obj\Ks0108.obj",
+".\Obj\MenuTop.obj",
+".\Obj\MenuFSM.obj",
+".\Obj\MenuFunc.obj",
+".\Obj\MenuLanguage.obj",
+".\Obj\MenuMeasure.obj",
+".\Obj\MenuPara.obj",
+".\Obj\KeyScan.obj",
+".\Obj\Menu.obj",
+".\Obj\MenuMain.obj" 
+TO ".\Obj\Diag" 
+PRINT(".\Lst\Diag.m51") RAMSIZE(256) 

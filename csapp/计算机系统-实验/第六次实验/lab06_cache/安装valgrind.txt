@@ -1,0 +1,27 @@
+一、下载源码安装Valgrind的方法（这种编译安装的方法更直接、可靠）
+
+1、下载源码
+ step1.1：下载地址
+  http://valgrind.org/downloads/
+  目前版本：valgrind 3.14.0 (tar.bz2) [17MB] - 9 October 2018.
+ step1.2：将压缩包拷贝到你想存放的目录（例如：/home/linda),不可以放到和windows共享的文件夹下。
+ 
+ step1.3：进入压缩包所在文件夹。
+    cd /home/linda
+	
+2、valgrind安装：
+step2.1：解压
+   tar -jxvf valgrind-3.14.0.tar.bz2
+
+step2.2：
+   cd valgrind-3.14.0
+
+step2.3：
+ ./configure
+或者（没试过）：
+ ./configure --prefix=/usr/local/
+step2.4：
+ make
+
+step2.5：
+ sudo make install

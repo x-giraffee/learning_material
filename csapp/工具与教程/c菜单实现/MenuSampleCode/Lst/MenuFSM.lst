@@ -1,0 +1,304 @@
+C51 COMPILER V8.16   MENUFSM                                                               12/15/2008 14:30:10 PAGE 1   
+
+
+C51 COMPILER V8.16, COMPILATION OF MODULE MENUFSM
+OBJECT MODULE PLACED IN .\Obj\MenuFSM.obj
+COMPILER INVOKED BY: d:\Keil\C51\BIN\C51.EXE Src\MenuFSM.C BROWSE DEBUG OBJECTEXTEND PRINT(.\Lst\MenuFSM.lst) OBJECT(.\O
+                    -bj\MenuFSM.obj)
+
+line level    source
+
+   1          /******************************************************************************
+   2           * MenuFSM.C - ²Ëµ¥¿ò¼ÜºÍFSM´úÂë
+   3           *
+   4          
+   5           *
+   6           * DESCRIPTION: -
+   7           *
+   8           * modification history
+   9           * --------------------
+  10           * 01a, 04/sep/2007, ÁºÑ×²ý written
+  11           * --------------------
+  12           ******************************************************************************/
+  13          
+  14          #include "CPU.H"
+  15          #include "KeyScan.H"
+  16          #include "KS0108.H"
+  17          #include "Menu.H"
+  18          
+  19          
+  20          
+  21          //FIXME!
+  22          //¸Ä½øÏë·¨:ÈçºÎÔÚ²Ëµ¥ÖÐ¿ÉÒÔ½Ó¹ÜÆäËüÓÐÐ§°´¼ü,ÕâÀï³ÌÐò½ö½ö½Ó¹ÜÁË·½Ïò°´¼ü,ÈôÄÜ¸ù¾Ý1--9ÕâÐ©Êý×Ö°´¼üÌø×ªÒ²ÊÇ²»´
+             -í
+  23          //¶îÍâµÄÎÊÌâÊÇÈçºÎÔÚÓ¦ÓÃ³ÌÐòÖÐµÃµ½°´¼ü¶øÈ´²»ÐèÒªÔÚÓ¦ÓÃ³ÌÐòÖÐ×ö¼üÅÌ¼ì²éÑ­»·(ÇÀÕ¼CPUÊ±¼äÁË,»áÊ¹µÃÔ­ÓÐ¿ÉÒÔÔÚ±
+             -³¾°ÔËÐÐµÄ³ÌÐòÎÞ·¨Ö´ÐÐ)
+  24          /*
+  25          *   A>¸Ä½øFSM±àºÅµÄ»úÖÆ,Ê¹µÃÎ¬»¤¸ü¼òµ¥,ÄÜ·ñ×Ô¶¯±àºÅ?ÕâÑù»áÊ¹µÃÌí¼ÓFSM±íÈÝÒ×
+  26          *   B>
+  27          *
+  28          *
+  29          */
+  30          //-----------------------------------
+  31          //MenuTop.C
+  32          void DispMenuTop(void);
+  33          void DispMenuTopUp(void);
+  34          void DispMenuTopDown(void);
+  35          void DispMenuTopLeft(void);
+  36          void DispMenuTopRight(void);
+  37          
+  38          void DispIcoMenuInit(void);
+  39          void DispIcoMenuUp(void);
+  40          void DispIcoMenuDown(void);
+  41          void DispIcoMenuLeft(void);
+  42          void DispIcoMenuRight(void);
+  43          
+  44          //MenuFunc.C
+  45          void DispMenuFuncInit(void);
+  46          void DispMenuFuncUp(void);
+  47          void DispMenuFuncDown(void);
+  48          void DispMenuFuncLeft(void);
+  49          void DispMenuFuncRight(void);
+  50          //MenuPara.C
+  51          void DispMenuParaInit(void);
+  52          void DispMenuParaUp(void);
+C51 COMPILER V8.16   MENUFSM                                                               12/15/2008 14:30:10 PAGE 2   
+
+  53          void DispMenuParaDown(void);
+  54          void DispMenuParaLeft(void);
+  55          void DispMenuParaRight(void);
+  56          //MenuLanguage.C
+  57          void DispMenuLanguageInit(void);
+  58          void DispMenuLanguageUp(void);
+  59          void DispMenuLanguageDown(void);
+  60          void DispMenuLanguageLeft(void);
+  61          void DispMenuLanguageRight(void);
+  62          
+  63          //MenuMeasure.C
+  64          void DispMenuMeasureInit(void);
+  65          void DispMenuMeasureUp(void);
+  66          void DispMenuMeasureDown(void);
+  67          void DispMenuMeasureLeft(void);
+  68          void DispMenuMeasureRight(void);
+  69          
+  70          #ifdef DynamicBar
+              //MenuFunc.C
+              void DispMenuDataInit(void);
+              void DispMenuDataUp(void);
+              void DispMenuDataDown(void);
+              void DispMenuDataLeft(void);
+              void DispMenuDataRight(void);
+              #endif
+  78          //-----------------------------------
+  79          
+  80          
+  81          void (*KeyFuncPtr)(); //°´¼ü¹¦ÄÜÖ¸Õë
+  82          
+  83          typedef struct{
+  84                  U8 KeyStateIndex; //µ±Ç°×´Ì¬Ë÷ÒýºÅ
+  85                  U8 KeyUpState; //°´ÏÂ"ÏòÉÏ"¼üÊ±×ªÏòµÄ×´Ì¬Ë÷ÒýºÅ
+  86                  U8 KeyDnState; //°´ÏÂ"ÏòÏÂ"¼üÊ±×ªÏòµÄ×´Ì¬Ë÷ÒýºÅ
+  87                  U8 KeyLState;  //°´ÏÂ"Ïò×ó"¼üÊ±×ªÏòµÄ×´Ì¬Ë÷ÒýºÅ
+  88                  U8 KeyRState;  //°´ÏÂ"ÏòÓÒ"¼üÊ±×ªÏòµÄ×´Ì¬Ë÷ÒýºÅ
+  89                  void (*CurrentOperate)(); //µ±Ç°×´Ì¬Ó¦¸ÃÖ´ÐÐµÄ¹¦ÄÜ²Ù×÷
+  90          } KbdTabStruct;
+  91          //ÈçÏÂÊÇ²Ëµ¥µÄ¹Ø¼ü´úÂë
+  92          //²»Çå³þ¾ßÌåº¬Òå ²»ÄÜ¸Ä¶¯
+  93          //ÒòÎª¸ú±àÒëÆ÷Ïà¹Ø
+  94          //ÈçÏÂµÄº¯ÊýµÄÃû³ÆÒ²²»¿ÉÒÔÇáÒ×ÐÞ¸Ä
+  95          /*
+  96          ********************************************************************************
+  97             FSM²Ëµ¥ÊµÏÖ»úÖÆËµÃ÷:
+  98          A.Ò»Ð©Ô¼¶¨:Ö»ÓÐ4¸ö°´¼üÀ´×ö²Ëµ¥ÖÜ×ª,ÕâËÄ¸ö°´¼üUp/Down/Left/Down ¶ÔÓ¦¹¦ÄÜÊÇ:È·ÈÏ/»ØÍË/ÏòÉÏ/ÏòÏÂ
+  99          B.Ã¿Ò»²ãµÄbarÐÍ²Ëµ¥ÐèÒª´ó¸Å5¸ö×´Ì¬(Ò²¾ÍÊÇ5¸öº¯Êý)À´ÊµÏÖ,·Ö±ðÊÇMenuInit/MenuUp/MenuDown/MenuLeft/MenuRight
+ 100          ¶ÔÓ¦µÄ¹¦ÄÜ½âÊÍ:
+ 101          MenuInit : ³õÊ¼»¯²Ëµ¥/ÖØÐÂ³õÊ¼»¯²Ëµ¥,ÔÚ½øÈëÒ»¸ö×ÓBar²Ëµ¥Ê±,¸Ãº¯Êý°ÑBarÏÔÊ¾Ö¸Õë¸ù¾ÝÓïÑÔÖ¸Ïò×ÓBarµÄ×ÊÔ´Êý×é,
+ 102          »ñµÃÐèÒªµÄ²ÎÊý:¸Ã×Ó²Ëµ¥¶àÉÙ¸öBarÏî(ItemNum)/Ã¿¸öBarÏîµÄ×Ö·û³¤¶È(Size)/Ö¸ÏòBarÏÔÊ¾ÄÚÈÝµÄÖ¸Õë(DispItem).
+ 103          ¶øºó,µ÷ÓÃº¯ÊýBarMenuInit,¸Ãº¯Êý³õÊ¼»¯È«²¿BarÏÔÊ¾--Õâ¾ÍÊÇ³õÊ¼»¯²Ëµ¥.
+ 104          ÈôÊÇÊÇ´Ó×Ó²Ëµ¥·µ»ØÊ±,ÄÇÃ´ÔÚ·µ»ØÇ°,Popº¯Êý±»µ÷ÓÃ,¸÷ÖÖ²Ëµ¥²ÎÊý±»»¹Ô­,ÔÚ½øÈë±¾º¯Êýºó,±¾º¯Êý¸ù¾ÝµÃµ½²ÎÊýÏÔÊ¾Ba
+             -rÏî
+ 105          ³õÊ¼»¯²Ëµ¥/ÖØÐÂ³õÊ¼»¯²Ëµ¥µÄ²»Í¬µãÔÚÓÚ:
+ 106          ³õÊ¼»¯Ê±      ¸ßÁÁÏÔÊ¾µÄÎ»ÖÃÊÇÔÚ¶¥²¿,¶ÔÓ¦Ñ¡ÖÐµÄItemÒ²ÊÇÔÚ¶¥²¿
+ 107          ÖØÐÂ³õÊ¼»¯Ê±  ÓÉÓÚÓÃ»§Í¨¹ý°´¼üÏòÉÏ/ÏòÏÂÀ´Ñ¡ÔñBarÏî,¶øºóÍ¨¹ý°´¼üÈ·ÈÏÀ´½øÈë×Ó²Ëµ¥,ÎªÁËÔÚÍË³ö×Ó²Ëµ¥Ê±ÄÜµÃµ½¸ú
+             -½øÈë
+ 108          Ç°Ò»ÖÂµÄÏÔÊ¾ÄÚÈÝ,Òò´ËÐèÒª±¸·ÝÒ»Ð©Ïà¹ØÊý¾Ý:¸ßÁÁµÄÎ»ÖÃ/Ñ¡ÖÐµÄItem/µ±Ç°FSMµÄIndexºÅ  ÔÚÍË³ö×Ó²Ëµ¥Ê±Pop»¹Ô­ÕâÐ
+             -©Êý¾Ý
+ 109          ±¾º¯Êý¸ù¾ÝÕâÐ©»¹Ô­Êý¾Ý»Ö¸´ÏÔÊ¾.
+ 110          
+ 111          MenuUp   : ¸ù¾ÝBarÏÔÊ¾ÄÚÈÝÖ´ÐÐ¶ÔÓ¦¶¯×÷º¯Êý/»òÕßÖÜ×ªµ½Ä³²ã×Ó²Ëµ¥
+C51 COMPILER V8.16   MENUFSM                                                               12/15/2008 14:30:10 PAGE 3   
+
+ 112          MenuDown : ·µ»ØÉÏ²ã²Ëµ¥ Í¨³£ÊÇ¼òµ¥µ÷ÓÃPopº¯Êý
+ 113          MenuLeft : ÒÆÖÁÉÏÒ»¸öBarÏî Í¨³£ÊÇµ÷ÓÃBarMenuLeftº¯Êý--¸Ãº¯ÊýÎ¬»¤BarµÄÏÔÊ¾ºóFSM×´Ì¬·µ»ØMenunInit,µ«ÓÉÓÚÃ»ÓÐ
+             -´ò¿ªFlash/ReflashÏî,Òò´ËÃ»ÓÐÖ´ÐÐMenuInitº¯Êý
+ 114          MenuRight: ÒÆÖÁÏÂÒ»¸öBarÏî Í¨³£ÊÇµ÷ÓÃBarMenurightº¯Êý--¸Ãº¯ÊýÎ¬»¤BarµÄÏÔÊ¾ºóFSM×´Ì¬·µ»ØMenunInit,µ«ÓÉÓÚÃ»Ó
+             -Ð´ò¿ªFlash/ReflashÏî,Òò´ËÃ»ÓÐÖ´ÐÐMenuInitº¯Êý
+ 115          
+ 116          
+ 117          ********************************************************************************
+ 118          */
+ 119          _CONST_ KbdTabStruct KeyTab[]={
+ 120          //       |-----------> Index
+ 121          //       |  Up
+ 122          //       |  |  Down
+ 123          //       |  |  |  Left
+ 124          //       |  |  |  |  Right   --->¹¦ÄÜº¯Êý
+ 125          //       |  |  |  |  |       |
+ 126                 { 0, 1, 2, 3, 4,(*DispMenuTop)},// ´ý»ú»­Ãæ
+ 127                 { 1, 0, 0, 0, 0,(*DispMenuTopUp)},
+ 128                 { 2, 0, 0, 0, 0,(*DispMenuTopDown)},
+ 129                 { 3, 0, 0, 0, 0,(*DispMenuTopLeft)},
+ 130                 { 4, 0, 0, 0, 0,(*DispMenuTopRight)},
+ 131          
+ 132                 { 5, 6, 7, 8, 9,(*DispIcoMenuInit)}, //Í¼±ê²ã²Ëµ¥
+ 133                 { 6, 0, 0, 0, 0,(*DispIcoMenuUp)},   //
+ 134                 { 7, 0, 0, 0, 0,(*DispIcoMenuDown)}, //
+ 135                 { 8, 0, 0, 0, 0,(*DispIcoMenuLeft)}, //
+ 136                 { 9, 0, 0, 0, 0,(*DispIcoMenuRight)},//
+ 137          
+ 138                 {10,11,12,13,14,(*DispMenuFuncInit)}, //"¹¦ÄÜ"
+ 139                 {11, 0, 0, 0, 0,(*DispMenuFuncUp)},   //
+ 140                 {12, 0, 0, 0, 0,(*DispMenuFuncDown)}, //
+ 141                 {13, 0, 0, 0, 0,(*DispMenuFuncLeft)}, //
+ 142                 {14, 0, 0, 0, 0,(*DispMenuFuncRight)},//
+ 143          
+ 144                 {15,16,17,18,19,(*DispMenuParaInit)}, //"²ÎÊý"
+ 145                 {16, 0, 0, 0, 0,(*DispMenuParaUp)},   //
+ 146                 {17, 0, 0, 0, 0,(*DispMenuParaDown)}, //
+ 147                 {18, 0, 0, 0, 0,(*DispMenuParaLeft)}, //
+ 148                 {19, 0, 0, 0, 0,(*DispMenuParaRight)},//
+ 149          
+ 150                 {20,21,22,23,24,(*DispMenuLanguageInit)}, //"ÓïÑÔ"
+ 151                 {21, 0, 0, 0, 0,(*DispMenuLanguageUp)},   //
+ 152                 {22, 0, 0, 0, 0,(*DispMenuLanguageDown)}, //
+ 153                 {23, 0, 0, 0, 0,(*DispMenuLanguageLeft)}, //
+ 154                 {24, 0, 0, 0, 0,(*DispMenuLanguageRight)},//
+ 155          
+ 156          
+ 157                 {25,26,27,28,29,(*DispMenuMeasureInit)}, //"²âÁ¿"
+ 158                 {26, 0, 0, 0, 0,(*DispMenuMeasureUp)},   //
+ 159                 {27, 0, 0, 0, 0,(*DispMenuMeasureDown)}, //
+ 160                 {28, 0, 0, 0, 0,(*DispMenuMeasureLeft)}, //
+ 161                 {29, 0, 0, 0, 0,(*DispMenuMeasureRight)},//
+ 162          #ifdef DynamicBar
+                     {30,31,32,33,34,(*DispMenuDataInit)}, //"Data"
+                     {31, 0, 0, 0, 0,(*DispMenuDataUp)},   //
+                     {32, 0, 0, 0, 0,(*DispMenuDataDown)}, //
+                     {33, 0, 0, 0, 0,(*DispMenuDataLeft)}, //
+                     {34, 0, 0, 0, 0,(*DispMenuDataRight)},//
+              #endif
+ 169          
+ 170          };
+ 171          
+C51 COMPILER V8.16   MENUFSM                                                               12/15/2008 14:30:10 PAGE 4   
+
+ 172          /*
+ 173          *****************************************************************************
+ 174          * CheckKey - ²Ëµ¥¼üÅÌÉ¨Ãèº¯Êý
+ 175          * DESCRIPTION: -
+ 176          * ÓÐÓÐÐ§°´¼üÔòÖ´ÐÐ¶ÔÓ¦µÄ¹¦ÄÜº¯Êý
+ 177          * Í¬Ê±,ÈôË¢ÐÂ±êÖ¾ÓÐÐ§,Ò²Ö´ÐÐÏàÓ¦µÄ¹¦ÄÜº¯Êý
+ 178          * @Para void:
+ 179          * Return :
+ 180          *
+ 181          *****************************************************************************
+ 182          */
+ 183          U8 CheckKey(void)
+ 184          {
+ 185   1          U8 IsKey;
+ 186   1          U8 Key;
+ 187   1          IsKey = 1;
+ 188   1          Key = KeyScan();
+ 189   1          switch(Key){
+ 190   2              case Key_Up:{ //ÏòÉÏ¼ü,ÕÒ³öÐÂµÄ²Ëµ¥×´Ì¬±àºÅ
+ 191   3                  KeyFuncIndex=KeyTab[KeyFuncIndex].KeyUpState;
+ 192   3                  KeyFuncPtr=KeyTab[KeyFuncIndex].CurrentOperate;
+ 193   3                  (*KeyFuncPtr)();//Ö´ÐÐµ±Ç°°´¼üµÄ²Ù×÷
+ 194   3                  break;
+ 195   3              }
+ 196   2              case Key_Down:{ //ÏòÏÂ¼ü,ÕÒ³öÐÂµÄ²Ëµ¥×´Ì¬±àºÅ
+ 197   3                  KeyFuncIndex=KeyTab[KeyFuncIndex].KeyDnState;
+ 198   3                  KeyFuncPtr=KeyTab[KeyFuncIndex].CurrentOperate;
+ 199   3                  (*KeyFuncPtr)();//Ö´ÐÐµ±Ç°°´¼üµÄ²Ù×÷
+ 200   3                  break;
+ 201   3              }
+ 202   2              case Key_Left:{ //Ïò×ó¼ü,ÕÒ³öÐÂµÄ²Ëµ¥×´Ì¬±àºÅ
+ 203   3                  KeyFuncIndex=KeyTab[KeyFuncIndex].KeyLState;
+ 204   3                  KeyFuncPtr=KeyTab[KeyFuncIndex].CurrentOperate;
+ 205   3                  (*KeyFuncPtr)();//Ö´ÐÐµ±Ç°°´¼üµÄ²Ù×÷
+ 206   3                  break;
+ 207   3              }
+ 208   2              case Key_Right:{ //ÏòÓÒ¼ü,ÕÒ³öÐÂµÄ²Ëµ¥×´Ì¬±àºÅ
+ 209   3                  KeyFuncIndex=KeyTab[KeyFuncIndex].KeyRState;
+ 210   3                  KeyFuncPtr=KeyTab[KeyFuncIndex].CurrentOperate;
+ 211   3                  (*KeyFuncPtr)();//Ö´ÐÐµ±Ç°°´¼üµÄ²Ù×÷
+ 212   3                  break;
+ 213   3              }
+ 214   2      //---------------------------------------------------------------------------
+ 215   2      #ifdef DigiKeyLink
+              /*
+              2006/09/08
+              Êý×Ö¼ü×ö¿ì½Ý·½Ê½ÊäÈë
+              1.ÅÐ±ðÊý×Ö¼üÖµÊÇ·ñÐ¡ÓÚItemNum-1 ·ñÔòÊÇÎÞÐ§¿ì½Ý·½Ê½
+              2.ÓÐÐ§¿ì½Ý·½Ê½ÏÂ£¬°Ñ¼üÖµ¸øItem£¬µ÷ÓÃKey_UpµÄ´¦Àí´úÂë
+              3.ÐèÒªÌí¼Ó³¬Ê±´¦Àí£¬³¬Ê±ÁË¾Í²»ÄÜÊ¹ÓÃ£¿£¨ÐèÒªÃ´£¿²»ÐèÒªÃ´£¿£©
+              */
+                      case Key_1:
+                      case Key_2:
+                      case Key_3:
+                      case Key_4:
+                      case Key_5:
+                      case Key_6:
+                      case Key_7:
+                      case Key_8:
+                      case Key_9:
+                          Key = chang_code(Key);
+                          if((Key - '1') <= ItemNum-1){
+C51 COMPILER V8.16   MENUFSM                                                               12/15/2008 14:30:10 PAGE 5   
+
+                              Item = Key - '1';
+                              if(ItemNum <= DispMax){//Èç¹ûÐèÒªÏÔÊ¾µÄÏî±È¿ÉÒÔÏÔÊ¾µÄÏîÉÙ£¬ÄÇÃ´ÐÞÕýWhere ·ñÔòÄ¬ÈÏWhereÎª0
+                                  Where = Item;
+                              }else{
+                                  Where = 0;
+                              }
+                              //-------------------------------------------------
+                              KeyFuncIndex=KeyTab[KeyFuncIndex].KeyUpState;
+                              KeyFuncPtr=KeyTab[KeyFuncIndex].CurrentOperate;
+                              (*KeyFuncPtr)();//Ö´ÐÐµ±Ç°°´¼üµÄ²Ù×÷
+                              //-------------------------------------------------
+                          }else {
+                              IsKey = 0;
+                          }
+                          break;
+              #endif
+ 250   2      //---------------------------------------------------------------------------
+ 251   2              default: //°´¼ü´íÎóµÄ´¦Àí
+ 252   2                  IsKey = 0;
+ 253   2                  break;
+ 254   2          }
+ 255   1      
+ 256   1          if(Flash){//Á½¸öµ±ÖÐÓÐÈÎÒâÒ»¸ö²»ÎªÁã£¬ÄÇÃ´Ö´ÐÐÒ»´Î£¬ÎÒÃÇÓ¦¸Ã²»»á³öÏÖFlashºÍReFlash¶¼ÊÇ1µÄÇé¿ö
+ 257   2              KeyFuncPtr=KeyTab[KeyFuncIndex].CurrentOperate;
+ 258   2              (*KeyFuncPtr)();//Ö´ÐÐµ±Ç°°´¼üµÄ²Ù×÷
+ 259   2              Flash = 0;
+ 260   2             // ReFlash = 0;
+ 261   2           }
+ 262   1      
+ 263   1          return IsKey;
+ 264   1      }
+ 265          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    169    ----
+   CONSTANT SIZE    =    240    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      3       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

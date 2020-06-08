@@ -1,0 +1,12 @@
+6.程序的生成 Hello.c （ Cpp、Gcc、As、ld 各生成文件）
+熟悉Linux环境,在Terminal窗口下使用Shell各类命令。
+cpp hello.c  > hello.i            gcc -E hello.c -o hello.i   去掉include试一下
+gcc -S hello.c -o hello.s      gcc -v hello.c看怎么生成执行文件的
+as  hello.s -o hello.o            gcc -c hello.s -o hello.o
+ld hello.o -lc  -o hello.out  出错          用gcc  hello.o -o hello.out
+nano/cat/more/gedit 看内容                file 文件名                  看文件类型
+
+ld -dynamic-linker /lib64/ld-linux-x86-64.so.2  /usr/lib/x86_64-linux-gnu/crt1.o /usr/lib/x86_64-linux-gnu/crti.o /usr/lib/gcc/x86_64-linux-gnu/5/crtbegin.o hello.o -lc /usr/lib/gcc/x86_64-linux-gnu/5/crtend.o /usr/lib/x86_64-linux-gnu/crtn.o -z relro -o a.out
+ldd -v exe_filename  查看文件的链接信息
+gcc -v hello.o -o a.out   看怎么连接的。
+gcc 等命令  -v  看软件版本

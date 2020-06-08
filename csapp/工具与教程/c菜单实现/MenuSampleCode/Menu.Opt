@@ -1,0 +1,63 @@
+### uVision2 Project, (C) Keil Software
+### Do not modify !
+
+ cExt (*.c)
+ aExt (*.s*; *.src; *.a*)
+ oExt (*.obj)
+ lExt (*.lib)
+ tExt (*.txt; *.h; *.inc)
+ pExt (*.plm)
+ CppX (*.cpp)
+ DaveTm { 0,0,0,0,0,0,0,0 }
+
+Target (Target 1), 0x0000 // Tools: 'MCS-51'
+GRPOPT 1,(Source Group 1),1,0,0
+
+OPTFFF 1,1,1,570425345,0,1,11,0,<.\Src\Main.C><Main.C> { 44,0,0,0,0,0,0,0,1,0,0,0,255,255,255,255,255,255,255,255,252,255,255,255,226,255,255,255,61,0,0,0,14,0,0,0,111,3,0,0,125,1,0,0 }
+OPTFFF 1,2,1,234881027,0,1,3,0,<.\Src\Ks0108.C><Ks0108.C> { 44,0,0,0,0,0,0,0,1,0,0,0,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,32,0,0,0,75,0,0,0,187,2,0,0,128,1,0,0 }
+OPTFFF 1,3,1,721420289,0,0,0,0,<.\Src\MenuTop.C><MenuTop.C> 
+OPTFFF 1,4,1,0,0,0,0,0,<.\Src\MenuFSM.C><MenuFSM.C> 
+OPTFFF 1,5,1,0,0,0,0,0,<.\Src\MenuFunc.C><MenuFunc.C> 
+OPTFFF 1,6,1,0,0,0,0,0,<.\Src\MenuLanguage.C><MenuLanguage.C> 
+OPTFFF 1,7,1,0,0,0,0,0,<.\Src\MenuMeasure.C><MenuMeasure.C> 
+OPTFFF 1,8,1,0,0,0,0,0,<.\Src\MenuPara.C><MenuPara.C> 
+OPTFFF 1,9,1,0,0,0,0,0,<.\Src\KeyScan.C><KeyScan.C> 
+OPTFFF 1,10,1,1,0,0,0,0,<.\Src\Menu.C><Menu.C> 
+OPTFFF 1,11,1,520093697,0,0,0,0,<.\Src\MenuMain.C><MenuMain.C> 
+
+
+TARGOPT 1, (Target 1)
+ CLK51=33000000
+  OPTTT 1,1,1,0
+  OPTHX 0,65535,0,0,0
+  OPTLX 120,65,8,<.\Lst\>
+  OPTOX 16
+  OPTLT 1,1,1,0,1,1,0,1,0,0,0,0
+  OPTXL 1,1,1,1,1,1,1,0,0
+  OPTFL 1,0,1
+  OPTAX 0
+  OPTDL (S8051.DLL)()(DP51.DLL)(-pAT52)(S8051.DLL)()(TP51.DLL)(-pAT52)
+  OPTDBG 44029,-1,()()()()()()()()()() ()()()()
+  OPTKEY 0,(DLGDP51)((98=-1,-1,-1,-1,0)(82=-1,-1,-1,-1,0)(83=-1,-1,-1,-1,0)(84=-1,-1,-1,-1,0)(85=-1,-1,-1,-1,0)(3003=-1,-1,-1,-1,0)(91=-1,-1,-1,-1,0)(92=-1,-1,-1,-1,0)(94=-1,-1,-1,-1,0)(5023=-1,-1,-1,-1,0)(123=-1,-1,-1,-1,0))
+  OPTBB 0,0,232,1,-16765052,0,0,0,0,1,<MENUTOP.C>()()
+  OPTBB 1,0,171,1,-16763696,0,0,0,0,1,<MENUFSM.C>()()
+  OPTWA 0,1,(DispItem)
+  OPTWA 1,1,(DataItem)
+  OPTWA 2,1,(*(DispItem+Item))
+  OPTWA 3,1,((DispItem+Item))
+  OPTWA 4,1,(Item)
+  OPTWA 5,1,(DataItem_p)
+  OPTWA 6,1,(BarMenu)
+  OPTWA 7,1,((*BarMenu).Text)
+  OPTWA 8,1,(MenuFunc)
+  OPTWA 9,1,(FuncItemEN)
+  OPTWA 10,1,(DynamicBarDispItem)
+  OPTWA 11,1,(*(DynamicBarDispItem+Item))
+  OPTWA 12,1,(DynamicBarDispItem+1)
+  OPTWA 13,1,(*(DynamicBarDispItem+Item))
+  OPTMM 1,0,(c:0x1b30)
+  OPTDF 0x80
+  OPTLE <>
+  OPTLC <>
+EndOpt
+

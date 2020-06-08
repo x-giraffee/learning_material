@@ -1,0 +1,2408 @@
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 1   
+
+
+C51 COMPILER V7.20, COMPILATION OF MODULE K1_DIAG
+OBJECT MODULE PLACED IN .\Obj\K1_Diag.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE Src\K1_Diag.C LARGE BROWSE DEBUG OBJECTEXTEND PRINT(.\Lst\K1_Diag.lst) OBJE
+                    -CT(.\Obj\K1_Diag.obj)
+
+line level    source
+
+   1          /*
+   2           *****************************************************************************
+   3           * K1_Diag.C - K1Õï¶Ï´úÂë
+   4           *
+   5           * Copyright 2007-2010 BEIJING KND CNC TECHIQUE Co.,Ltd.
+   6           * Copyright 2007-2010 ±±¾©¿­¶÷µÛÊý¿Ø¼¼ÊõÓÐÏÞ¹«Ë¾
+   7           *
+   8           * DESCRIPTION: -
+   9           * K1
+  10           * modification history
+  11           * --------------------
+  12           * 01a, 30/jul/2007, ÁºÑ×²ý written
+  13           * --------------------
+  14           *****************************************************************************
+  15          */
+  16          
+  17          #include "CPU.H"
+  18          #include "Serial.H"
+  19          #include "Ks0108.H"
+  20          #include "K1_Adapter.H"
+  21          #include "K1_Diag.H"
+  22          #include "Menu.H"
+  23          #include "KeyScan.H"
+  24          
+  25          //extern unsigned char code Sound[];
+  26          extern unsigned char code Warning[];
+  27          //extern unsigned char code Question[];
+  28          
+  29          
+  30          //Î»¹¦ÄÜ Î»ÖÃÌáÊ¾
+  31          code U8 *SysErrDispStr[] = {
+  32          //24Bit Input Port string   ByteL-->ByteM -->ByteH
+  33          {"XDALM  XS51.5 "},//0  InputErrDiffByteL
+  34          {"ZDALM  XS52.5 "},//1
+  35          {"#OV1   XS54.11"},//2
+  36          {"#OV2   XS54.3 "},//3
+  37          {"#OV4   XS54.12"},//4
+  38          {"#OV8   XS54.4 "},//5
+  39          {"#ESP1  XS50.7 "},//6
+  40          {"#QPI   XS50.8 "},//7
+  41          {"T05    XS54.9 "},//0  InputErrDiffByteM
+  42          {"T06    XS54.1 "},//1
+  43          {"T07    XS54.10"},//2
+  44          {"T08    XS54.2 "},//3
+  45          {"T01    XS50.5 "},//4
+  46          {"T02    XS50.18"},//5
+  47          {"T03    XS54.6 "},//6
+  48          {"T04    XS54.19"},//7
+  49          {"#DECZ  XS50.20"},//0  InputErrDiffByteH
+  50          {"#DECX  XS50.21"},//1
+  51          {"XPC+"},          //2
+  52          {"ZPC+"},          //3
+  53          {""},              //4
+  54          {""},              //5
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 2   
+
+  55          {""},              //6
+  56          {""},              //7
+  57          //-OutputErrDiffByteL OutputErrDiffByteH
+  58          {"S01   XS57.1  "},//0  OutputErrDiffByteL    Z00
+  59          {"S02   XS57.2  "},//1
+  60          {"QPJ   XS57.3  "},//2
+  61          {"S03   XS57.4  "},//3
+  62          {"QPS   XS57.5  "},//4
+  63          {"Y25   XS57.6  "},//5
+  64          {"S04   XS57.7  "},//6
+  65          {"ESPO  XS57.8  "},//7                        Z07
+  66          {"M03   XS50.17 "},//0  OutputErrDiffByteH    Z08
+  67          {"M04   XS50.4  "},//1
+  68          {"Y12   XS50.16 "},//2
+  69          {"M08   XS50.3  "},//3
+  70          {"Y14   XS50.15 "},//4
+  71          {"TL+   XS50.2  "},//5
+  72          {"TL-   XS50.14 "},//6
+  73          {"SPZD  XS50.1  "},//7                        Z15
+  74          //-MiscErrDiffByteL
+  75          {"XMRDY1        "},
+  76          {"ZMRDY1        "},
+  77          {"Rs232 DCD     "},
+  78          {"Rs232 DSR     "},
+  79          {"SVC           "},
+  80          {"ÊÖÂÖ HAHB     "},
+  81          {"±àÂëÆ÷PASPBS  "},
+  82          {"±àÂëÆ÷PCS     "},
+  83          //-AxisErrDiff
+  84          {"XÖáÐÅºÅ XCP   "},
+  85          {"XÖáÐÅºÅ XDIR  "},
+  86          {"ZÖáÐÅºÅ ZCP   "},
+  87          {"ZÖáÐÅºÅ ZDIR  "},
+  88          };
+  89          
+  90          
+  91          
+  92          
+  93          
+  94          
+  95          /*
+  96          IN2_Port
+  97          0---Bit0
+  98          1---Bit1
+  99          2---Bit7
+ 100          3---Bit2
+ 101          4---Bit6
+ 102          5---Bit5
+ 103          6---Bit3
+ 104          7---Bit4
+ 105          
+ 106          */
+ 107          
+ 108          extern U8 code InPutDataBitSwap[];
+ 109          extern data struct RxdData RxdData;
+ 110          extern data struct TxdData TxdData;
+ 111          extern U8 ReadAdc(void); //¶Á³öTLC0831×ª»»Êý¾Ýº¯Êý
+ 112          extern void InitPortData(void);
+ 113          extern void CutOffAllPort(void);
+ 114          extern void Delayms(U16 Ms);
+ 115          extern void Delay_50us(U16 t);
+ 116          //extern U8 WaitKey(void);
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 3   
+
+ 117          extern void SetPortData(U32 Port_Data,Bool Force);
+ 118          
+ 119          
+ 120          #if 0
+              /******************************************************************************
+               * DispActiveFlag - ÏÔÊ¾¶¯Ì¬·ûºÅ
+               * DESCRIPTION: -
+               * ÓÃÓÚ±íÊ¾³ÌÐòÔËÐÐÖÐ
+               * Input:
+               * Output:
+               * Returns:
+               *
+               * modification history
+               * --------------------
+               * 01a, 30/jul/2007, ÁºÑ×²ý written
+               * --------------------
+               ******************************************************************************/
+              void DispActiveFlag(U8Count)
+              {
+                  GUI_SetEnFont(En_5x8);
+              
+                  switch(U8Count%4){
+                      case 0:
+                          GUI_DispCharAt('-',LCD_XSIZE-Char_XSIZE,0);
+                          break;
+                      case 1:
+                          GUI_DispCharAt('\\',LCD_XSIZE-Char_XSIZE,0);
+                          break;
+                      case 2:
+                          GUI_DispCharAt('|',LCD_XSIZE-Char_XSIZE,0);
+                          break;
+                      case 3:
+                          GUI_DispCharAt('/',LCD_XSIZE-Char_XSIZE,0);
+                          break;
+                      default:
+                          break;
+                  }
+                  GUI_SetEnFont(En_8x16);
+              }
+              #endif
+ 157          /******************************************************************************
+ 158           * ProgBar - Ë®Æ½½ø¶ÈÌõ
+ 159           * DESCRIPTION: -
+ 160           * ´øÓÐxx%½ø¶ÈÌáÊ¾
+ 161           * Input:
+ 162           * Output:
+ 163           * Returns:
+ 164           *
+ 165           * modification history
+ 166           * --------------------
+ 167           * 01a, 30/jul/2007, ÁºÑ×²ý written
+ 168           * --------------------
+ 169           ******************************************************************************/
+ 170          void ProgBar(U8 y, U8 x0, U8 x1,U8 Precent,U8 MaxPrecentSize)
+ 171          {
+ 172   1          float FTemp;
+ 173   1      
+ 174   1          FTemp = Precent;
+ 175   1          FTemp /= MaxPrecentSize;
+ 176   1          FTemp *= 100;
+ 177   1          GUI_SetEnFont(En_5x8);
+ 178   1          GUI_DispDecAt((U8)FTemp,x1+1,y,2);
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 4   
+
+ 179   1          GUI_DispCharAt('%',x1+1+16,y);
+ 180   1          GUI_SetEnFont(En_8x16);
+ 181   1          HBar(y, x0, x1,(U8)(FTemp));
+ 182   1      
+ 183   1      }
+ 184          
+ 185          /*
+ 186          *****************************************************************************
+ 187          * SendCMDPackage - ·¢ËÍÃüÁî°ü¸øK1
+ 188          * DESCRIPTION: -
+ 189          * ¸Ãº¯Êý±»µ÷ÓÃÇ°ÒªÌî³äºÃTxdData.DataBuf   DataLen CMD TxdData.CheckByte
+ 190          * Input: ACK  ¼ì²éµÄACK
+ 191                   TimeoutDiv  ³¬Ê±µÄ·ÖÆµÖµ TimeoutInitData/TimeoutDivÊÇÊµ¼Ê³¬Ê±¼ÆÊýÖµ
+ 192                   Retry ÖØÊÔ´ÎÊý
+ 193          * Output:
+ 194          * Returns: true false
+ 195          *
+ 196          *****************************************************************************
+ 197          */
+ 198          Bool SendCMDPackage(U8 TimeoutDiv,U8 ACK,U8 Retry)
+ 199          {
+ 200   1          U16 Timeout;
+ 201   1          do{
+ 202   2              if(TxdData.State == Txd_Empty){
+ 203   3                  //Êý¾Ý°üÌî³äÓÉÍâ²¿³ÌÐòÍê³É,ÕâÀïÖ»ÊÇÆô¶¯·¢ËÍ
+ 204   3                  StartTXD();
+ 205   3              }
+ 206   2              Timeout = TimeoutInitData;
+ 207   2              do{
+ 208   3                  if(TxdData.State == Txd_Empty){//·¢ËÍÍê±Ï
+ 209   4                      break;
+ 210   4                  }
+ 211   3                  Timeout--;
+ 212   3              }while(Timeout);
+ 213   2              LED1 = 0x00;
+ 214   2              Timeout = TimeoutInitData/TimeoutDiv;
+ 215   2              do{
+ 216   3                  if((RxdData.State == Rxd_CheckByteOk)&&(RxdData.ACK == ACK)){
+ 217   4                      RxdData.State = Rxd_Empty;
+ 218   4                      //Retry = 1;//Retry ÉèÖÃÎª1 Í¨ÖªÍË³öÑ­»·
+ 219   4                      //break;
+ 220   4                      return true;
+ 221   4                  }
+ 222   3                  Timeout --;
+ 223   3              }while(Timeout);
+ 224   2              Retry--;
+ 225   2              if(Retry == 0){
+ 226   3                  break;
+ 227   3              }
+ 228   2              LED1 = 0x01;
+ 229   2          }while(Retry);
+ 230   1      
+ 231   1      //    if(Timeout){
+ 232   1      //        return true;
+ 233   1      //    }else{
+ 234   1              return false;
+ 235   1      //    }
+ 236   1      }
+ 237          
+ 238          
+ 239          //--------------------------------
+ 240          //ÏÔÊ¾µçÑ¹Öµ
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 5   
+
+ 241          //x0 y0 ÆðµãÎ»ÖÃ
+ 242          void DispVolt(U8 VoltData,U8 x0,U8 y0)
+ 243          {
+ 244   1          U16 U16Temp;
+ 245   1          U8 U8Temp;
+ 246   1          float vol;
+ 247   1      
+ 248   1      
+ 249   1      
+ 250   1          vol = VoltData;
+ 251   1      
+ 252   1          vol *= 10000;//10V   --  8Bit AD
+ 253   1          vol /= 256;
+ 254   1      
+ 255   1      
+ 256   1          U16Temp = (U16)vol/10;
+ 257   1          GUI_DispCharAt('V',x0+5*Char_XSIZE,y0);
+ 258   1          U8Temp = U16Temp%10;
+ 259   1      
+ 260   1          GUI_DispCharAt(U8Temp+'0',x0+4*Char_XSIZE,y0);
+ 261   1      
+ 262   1          U16Temp = U16Temp/10;
+ 263   1          U8Temp = U16Temp%10;
+ 264   1          GUI_DispCharAt(U8Temp+'0',x0+3*Char_XSIZE,y0);
+ 265   1      
+ 266   1          GUI_DispCharAt('.',x0+2*Char_XSIZE,y0);
+ 267   1      
+ 268   1          U16Temp = U16Temp/10;
+ 269   1          U8Temp = U16Temp%10;
+ 270   1          GUI_DispCharAt(U8Temp+'0',x0+Char_XSIZE,y0);
+ 271   1      
+ 272   1          U16Temp = U16Temp/10;
+ 273   1          U8Temp = U16Temp%10;
+ 274   1          if(U8Temp){
+ 275   2              GUI_DispCharAt(U8Temp+'0',x0,y0);
+ 276   2          }else{
+ 277   2              GUI_DispCharAt(' ',x0,y0);
+ 278   2          }
+ 279   1      }
+ 280          
+ 281          /*
+ 282          *****************************************************************************
+ 283          * CheckSVCOutput -  ÒÔÖ¸¶¨Öµ²âÊÔÄ£ÄâµçÑ¹Êä³ö
+ 284          * DESCRIPTION: -
+ 285          *
+ 286          * Input: SVCSetData Ö¸¶¨µÄµçÑ¹Öµ
+ 287          * Output:
+ 288          * Returns: Err_Pass Err_unPass Err_Timeout  ²âÊÔÍ¨¹ý/Î´Í¨¹ý/³¬Ê±
+ 289          *
+ 290          *****************************************************************************
+ 291          */
+ 292          U8 CheckSVCOutput(U8 SVCSetData)
+ 293          {
+ 294   1          U8 InData;
+ 295   1          Bool FailFlag;
+ 296   1          U8 SVCReadData;
+ 297   1      
+ 298   1          FailFlag = false;
+ 299   1      
+ 300   1      
+ 301   1          TxdData.CMD = CMD_SetOutput;
+ 302   1          TxdData.DataLen = 0x04;
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 6   
+
+ 303   1          TxdData.DataBuf[0] = 0x55;
+ 304   1          TxdData.DataBuf[1] = 0x55;
+ 305   1          TxdData.DataBuf[2] = SVCSetData;
+ 306   1          TxdData.DataBuf[3] = 0x0F;
+ 307   1          TxdData.CheckByte = TxdHeader0  + CMD_SetOutput +0x00;
+ 308   1      
+ 309   1      
+ 310   1          if(SendCMDPackage(100,CMD_SetOutput,10)){
+ 311   2              SVCReadData = ReadAdc();
+ 312   2              if(SVCReadData > SVCSetData){
+ 313   3                  InData = SVCReadData - SVCSetData;
+ 314   3              }else{
+ 315   3                  InData = SVCSetData - SVCReadData;
+ 316   3              }
+ 317   2      
+ 318   2              GUI_DispStringAt("ÉèÖÃÖµ-²âÁ¿Öµ-Æ«²î",StatusDispPosX+16,StatusDispPosY);
+ 319   2              DispVolt(SVCSetData,StatusDispPosX,StatusDispPosY+2);
+ 320   2              DispVolt(SVCReadData,StatusDispPosX+3*Chinese_XSIZE+Char_XSIZE,StatusDispPosY+2);
+ 321   2              DispVolt(InData,StatusDispPosX+6*Chinese_XSIZE+2*Char_XSIZE,StatusDispPosY+2);
+ 322   2      
+ 323   2              if(InData > 0x03){//Èç¹ûÎó²î½Ï´ó
+ 324   3                  //GUI_DispStringAt("Ä£ÄâÖ÷ÖáµçÑ¹Îó²îÖµÆ«´ó!",TitleDispPosX,TitleDispPosY);
+ 325   3                  GUI_DispStringAt("<--",StatusDispPosX+6*Chinese_XSIZE+8*Char_XSIZE,StatusDispPosY+2);
+ 326   3                  return Err_unPass;
+ 327   3              }else{
+ 328   3                  //GUI_DispStringAt("                       ",TitleDispPosX,TitleDispPosY);
+ 329   3                  GUI_DispStringAt("   ",StatusDispPosX+6*Chinese_XSIZE+8*Char_XSIZE,StatusDispPosY+2);
+ 330   3                  return Err_Pass;
+ 331   3              }
+ 332   2      
+ 333   2          }else{
+ 334   2              GUI_DispStringAt("Timeout! ",StatusDispPosX,StatusDispPosY);
+ 335   2              GUI_Delay(1000);
+ 336   2              return Err_Timeout;
+ 337   2          }
+ 338   1      }
+ 339          
+ 340          //SVC²âÊÔ²½½øÖµ
+ 341          #define SVCStep   0x0A
+ 342          
+ 343          
+ 344          /*
+ 345          *****************************************************************************
+ 346          * K1_SVCTest -  ²âÊÔK1µÄÄ£ÄâµçÑ¹
+ 347          * DESCRIPTION: -
+ 348          * ²âÊÔÈç¹û·¢ÏÖÆ«²î´óÓÚÒ»¶¨µÄÖµÄÇÃ´ÈÏÎªÓÐ´í
+ 349          * Input:
+ 350          * Output:*SysErrMap ³ö´í¼ÇÂ¼
+ 351          * Returns: Err_Pass Err_unPass Err_Timeout  ²âÊÔÍ¨¹ý/Î´Í¨¹ý/³¬Ê±
+ 352          *
+ 353          *****************************************************************************
+ 354          */
+ 355          U8 K1_SVCTest(struct _SysErrDiff *SysErrMap)
+ 356          {
+ 357   1          U16 U16Count;
+ 358   1          U8 TimeoutCount;
+ 359   1          U8 unPassCount;
+ 360   1          U8 ReturnCode;
+ 361   1          GUI_DispStringAtBar("-¼ì²âÄ£ÄâÖ÷Öá-",TitleDispPosX,TitleDispPosY,LCD_XSIZE-1,GUI_TA_HCENTER);
+ 362   1          for(U16Count = 0; U16Count < 0x100; U16Count += SVCStep){
+ 363   2      
+ 364   2              ProgBar(TitleDispPosY+2, 32, 128+32,(U8)U16Count,0xFF);
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 7   
+
+ 365   2              ReturnCode = CheckSVCOutput(U16Count);
+ 366   2              if(ReturnCode == Err_Timeout){//¼ì²éÊÇ·ñ³¬Ê±
+ 367   3                  TimeoutCount++;
+ 368   3                  if(TimeoutCount > MAXTimeoutCount){//³¬Ê±´ÎÊýÌ«¶àÁË
+ 369   4                      GUI_Clear();
+ 370   4                      GUI_DispStringAt("³¬Ê±´ÎÊýÌ«¶à!",StatusDispPosX,StatusDispPosY);
+ 371   4                      GUI_Delay(3000);
+ 372   4                      return Err_Timeout;
+ 373   4                  }
+ 374   3              }
+ 375   2              if(ReturnCode == Err_unPass){
+ 376   3                  unPassCount++;
+ 377   3                  if(unPassCount > 3){
+ 378   4                      SysErrMap->MiscErrDiffByteL |= MiscByteL_BIT_SVC;
+ 379   4                      return Err_unPass;
+ 380   4                  }
+ 381   3              }
+ 382   2          }
+ 383   1          return Err_Pass;
+ 384   1      }
+ 385          
+ 386          
+ 387          
+ 388          /*
+ 389          *****************************************************************************
+ 390          * K1_CheckRs232Pin_DCD -  ²âÊÔK1´®¿ÚµÄDCDÊä³öÐÅºÅ
+ 391          * DESCRIPTION: -
+ 392          * ·¢ËÍÃüÁî¸øK1ºó,K1»áÔÚÒ»¶ÎÊ±¼äÄÚÊä³öDCD DSRµÄ·½²¨Õï¶ÏÆ÷¼ì²â¸Ã·½²¨
+ 393          * Input:
+ 394          * Output:*SysErrMap ³ö´í¼ÇÂ¼
+ 395          * Returns: Err_Pass Err_unPass Err_Timeout  ²âÊÔÍ¨¹ý/Î´Í¨¹ý/³¬Ê±
+ 396          *
+ 397          *****************************************************************************
+ 398          */
+ 399          U8 K1_CheckRs232Pin_DCD(struct _SysErrDiff *SysErrMap)
+ 400          {
+ 401   1          U16 Timeout;
+ 402   1          U8 InData;
+ 403   1          U8 Retry;
+ 404   1      
+ 405   1          Bool FailFlag;
+ 406   1          Bool BitIsOne;
+ 407   1          U8 Trig;
+ 408   1      
+ 409   1          GUI_DispStringAtBar("-Rs232 DCD-",TitleDispPosX,TitleDispPosY,LCD_XSIZE-1,GUI_TA_HCENTER);
+ 410   1          ProgBar(TitleDispPosY+2, 32, 128+32,20,100);
+ 411   1      
+ 412   1          FailFlag = false;
+ 413   1      
+ 414   1          TxdData.CMD = CMD_SetOutput;
+ 415   1          TxdData.DataLen = 0x04;
+ 416   1          TxdData.DataBuf[0] = 0x55;
+ 417   1          TxdData.DataBuf[1] = 0x55;
+ 418   1          TxdData.DataBuf[2] = 0x55;
+ 419   1          TxdData.DataBuf[3] = 0x8F;
+ 420   1          TxdData.CheckByte = TxdHeader0  + CMD_SetOutput +0x00;
+ 421   1          Trig = 0;
+ 422   1          Retry = 4;
+ 423   1          ProgBar(TitleDispPosY+2, 32, 128+32,40,100);
+ 424   1      //    if(SetK1OutPut()){
+ 425   1              do{
+ 426   2                  StartTXD();
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 8   
+
+ 427   2                  Timeout = TimeoutInitData;
+ 428   2                  do{
+ 429   3                      if(TxdData.State == Txd_Empty){//·¢ËÍÍê±Ï
+ 430   4                          break;
+ 431   4                      }
+ 432   3                      GUI_Delay(1);
+ 433   3                      Timeout--;
+ 434   3                  }while(Timeout);
+ 435   2      
+ 436   2                  InData = XBYTE[IN3_Port_Addr];
+ 437   2                  if((InData&BIT_DCD)== 0){//¶Á³ö×´Ì¬
+ 438   3                      BitIsOne = false;
+ 439   3                  }else{
+ 440   3                      BitIsOne = true;
+ 441   3                  }
+ 442   2      
+ 443   2                  Timeout = 10000;
+ 444   2                  do{
+ 445   3                      InData = XBYTE[IN3_Port_Addr];
+ 446   3                      if(((InData&BIT_DCD)== 0)&&(BitIsOne == true)){//-----|________
+ 447   4                          Trig ++;
+ 448   4                          ProgBar(TitleDispPosY+2, 32, 128+32,40+Trig*10,100);
+ 449   4                          if(Trig > 2){
+ 450   5                              Retry = 1;
+ 451   5                          }
+ 452   4                          break;
+ 453   4                      }else if(((InData&BIT_DCD)== BIT_DCD)&&(BitIsOne == false)){//________|---------
+ 454   4                          Trig ++;
+ 455   4                          ProgBar(TitleDispPosY+2, 32, 128+32,40+Trig*10,100);
+ 456   4                          if(Trig > 2){
+ 457   5                              Retry = 1;
+ 458   5                          }
+ 459   4                          break;
+ 460   4                      }
+ 461   3                      Delay_50us(1);
+ 462   3                      LED1 ^= 0x01;
+ 463   3                      Timeout--;
+ 464   3                  }while(Timeout);
+ 465   2                  LED0 ^= 0x01;
+ 466   2      
+ 467   2                  Retry--;
+ 468   2                  if(Retry == 0){
+ 469   3                      break;
+ 470   3                  }
+ 471   2      
+ 472   2              }while(Retry);
+ 473   1      
+ 474   1              GUI_GotoXY(StatusDispPosX,StatusDispPosY);
+ 475   1      
+ 476   1              if(Trig > 2){
+ 477   2                  GUI_DispString("DCD");
+ 478   2                  GUI_DispString(" OK");
+ 479   2                  GUI_Delay(1000);
+ 480   2                  return Err_Pass;
+ 481   2              }else{
+ 482   2      //            if(Timeout){
+ 483   2                      SysErrMap->MiscErrDiffByteL |= MiscByteL_BIT_DCD;
+ 484   2                      GUI_GotoXY(StatusDispPosX,StatusDispPosY);
+ 485   2                      GUI_DispString("DCD");
+ 486   2                      GUI_DispString(" Err!");
+ 487   2                      GUI_Delay(2000);
+ 488   2                      return Err_unPass;
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 9   
+
+ 489   2      //            }else{
+ 490   2      //                GUI_DispStringAt("Timeout    ",StatusDispPosX,StatusDispPosY);
+ 491   2      //                GUI_Delay(2000);
+ 492   2      //                return Err_Timeout;
+ 493   2      //            }
+ 494   2              }
+ 495   1      
+ 496   1      //    }else{
+ 497   1      //            GUI_DispStringAt("Timeout    ",StatusDispPosX,StatusDispPosY);
+ 498   1      //            GUI_Delay(2000);
+ 499   1      //            return Err_Timeout;
+ 500   1      //    }
+ 501   1      
+ 502   1      }
+ 503          
+ 504          /*
+ 505          *****************************************************************************
+ 506          * K1_CheckRs232Pin_DSR - K1´®¿ÚDSRÊä³öÐÅºÅ²âÊÔ
+ 507          * DESCRIPTION: -
+ 508          *
+ 509          * Input:
+ 510          * Output:*SysErrMap ³ö´í¼ÇÂ¼
+ 511          * Returns: Err_Pass Err_unPass Err_Timeout  ²âÊÔÍ¨¹ý/Î´Í¨¹ý/³¬Ê±
+ 512          *
+ 513          *****************************************************************************
+ 514          */
+ 515          U8 K1_CheckRs232Pin_DSR(struct _SysErrDiff *SysErrMap)
+ 516          {
+ 517   1          U16 Timeout;
+ 518   1          U8 InData;
+ 519   1          U8 Retry;
+ 520   1      
+ 521   1          Bool FailFlag;
+ 522   1          Bool BitIsOne;
+ 523   1          U8 Trig;
+ 524   1      
+ 525   1          GUI_DispStringAtBar("-Rs232 DSR-",TitleDispPosX,TitleDispPosY,LCD_XSIZE-1,GUI_TA_HCENTER);
+ 526   1          ProgBar(TitleDispPosY+2, 32, 128+32,20,100);
+ 527   1      
+ 528   1      
+ 529   1          FailFlag = false;
+ 530   1      
+ 531   1          TxdData.CMD = CMD_SetOutput;
+ 532   1          TxdData.DataLen = 0x04;
+ 533   1          TxdData.DataBuf[0] = 0x55;
+ 534   1          TxdData.DataBuf[1] = 0x55;
+ 535   1          TxdData.DataBuf[2] = 0x55;
+ 536   1          TxdData.DataBuf[3] = 0x4F;
+ 537   1          TxdData.CheckByte = TxdHeader0  + CMD_SetOutput +0x00;
+ 538   1      
+ 539   1          Trig = 0;
+ 540   1          Retry = 4;
+ 541   1          ProgBar(TitleDispPosY+2, 32, 128+32,40,100);
+ 542   1      
+ 543   1      //    if(SetK1OutPut()){
+ 544   1              do{
+ 545   2                  StartTXD();
+ 546   2                  Timeout = TimeoutInitData;
+ 547   2                  do{
+ 548   3                      if(TxdData.State == Txd_Empty){//·¢ËÍÍê±Ï
+ 549   4                          break;
+ 550   4                      }
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 10  
+
+ 551   3                      GUI_Delay(1);
+ 552   3                      Timeout--;
+ 553   3                  }while(Timeout);
+ 554   2      
+ 555   2                  InData = XBYTE[IN3_Port_Addr];
+ 556   2                  if((InData&BIT_DSR)== 0){//¶Á³ö×´Ì¬
+ 557   3                      BitIsOne = false;
+ 558   3                  }else{
+ 559   3                      BitIsOne = true;
+ 560   3                  }
+ 561   2      
+ 562   2                  Timeout = 10000;
+ 563   2                  do{
+ 564   3                      InData = XBYTE[IN3_Port_Addr];
+ 565   3                      if(((InData&BIT_DSR)== 0)&&(BitIsOne == true)){//-----|________
+ 566   4                          Trig ++;
+ 567   4                          ProgBar(TitleDispPosY+2, 32, 128+32,40+Trig*10,100);
+ 568   4                          if(Trig > 2){
+ 569   5                              Retry = 1;
+ 570   5                          }
+ 571   4                          break;
+ 572   4                      }else if(((InData&BIT_DSR)== BIT_DSR)&&(BitIsOne == false)){//________|---------
+ 573   4                          Trig ++;
+ 574   4                          ProgBar(TitleDispPosY+2, 32, 128+32,40+Trig*10,100);
+ 575   4                          if(Trig > 2){
+ 576   5                              Retry = 1;
+ 577   5                          }
+ 578   4                          break;
+ 579   4                      }
+ 580   3                      Delay_50us(1);
+ 581   3                      LED1 ^= 0x01;
+ 582   3                      Timeout--;
+ 583   3                  }while(Timeout);
+ 584   2                  LED0 ^= 0x01;
+ 585   2      
+ 586   2                  Retry--;
+ 587   2                  if(Retry == 0){
+ 588   3                      break;
+ 589   3                  }
+ 590   2      
+ 591   2              }while(Retry);
+ 592   1      
+ 593   1              GUI_GotoXY(StatusDispPosX,StatusDispPosY);
+ 594   1              ProgBar(TitleDispPosY+2, 32, 128+32,90,100);
+ 595   1              if(Trig > 2){
+ 596   2                  GUI_DispString("DSR");
+ 597   2                  GUI_DispString(" OK");
+ 598   2                  GUI_Delay(1000);
+ 599   2                  return Err_Pass;
+ 600   2              }else{
+ 601   2                  if(Timeout){
+ 602   3                      SysErrMap->MiscErrDiffByteL |= MiscByteL_BIT_DSR;
+ 603   3                      GUI_GotoXY(StatusDispPosX,StatusDispPosY);
+ 604   3                      GUI_DispString("DSR");
+ 605   3                      GUI_DispString(" Err! @A");
+ 606   3                      GUI_Delay(3000);
+ 607   3                      return Err_unPass;
+ 608   3                  }else{//¼ì²éÊÇ·ñÊÕµ½ÃüÁî
+ 609   3                      GUI_Delay(400);
+ 610   3                      if((RxdData.State == Rxd_CheckByteOk)&&(RxdData.ACK == CMD_SetOutput)){//Èç¹ûÊÕµ½ÁËÃüÁîÈ´Ã
+             -»ÓÐ¼ì²âµ½DSRÐÅºÅ
+ 611   4                          RxdData.State = Rxd_Empty;
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 11  
+
+ 612   4                          SysErrMap->MiscErrDiffByteL |= MiscByteL_BIT_DSR;
+ 613   4                          GUI_GotoXY(StatusDispPosX,StatusDispPosY);
+ 614   4                          GUI_DispString("DSR");
+ 615   4                          GUI_DispString(" Err! @B");
+ 616   4                          GUI_Delay(2000);
+ 617   4                          return Err_unPass;
+ 618   4                      }else{//Ã»ÓÐÊÕµ½·´À¡,ÈÏÎª³¬Ê±
+ 619   4                          GUI_DispStringAt("Timeout    ",StatusDispPosX,StatusDispPosY);
+ 620   4                          GUI_Delay(2000);
+ 621   4                          return Err_Timeout;
+ 622   4                      }
+ 623   3                  }
+ 624   2              }
+ 625   1      
+ 626   1      //    }else{
+ 627   1      //            GUI_DispStringAt("Timeout    ",StatusDispPosX,StatusDispPosY);
+ 628   1      //            GUI_Delay(2000);
+ 629   1      //            return Err_Timeout;
+ 630   1      //    }
+ 631   1      
+ 632   1      }
+ 633          
+ 634          //Öá²âÊÔ´úÂë
+ 635          code struct _AxisTestCode AxisTestCode[] =
+ 636          {
+ 637          {0x0C,BIT_XDIR,AxisErrDiff_BIT_XDIR,"XDIR"},
+ 638          {0x0D,BIT_XCP, AxisErrDiff_BIT_XCP, "XCP "},
+ 639          {0x03,BIT_ZDIR,AxisErrDiff_BIT_ZDIR,"ZDIR"},
+ 640          {0x07,BIT_ZCP, AxisErrDiff_BIT_ZCP, "ZCP "},
+ 641          
+ 642          {0x0C,BIT_XDIR,AxisErrDiff_BIT_XDIR,"XDIR"},
+ 643          {0x0D,BIT_XCP, AxisErrDiff_BIT_XCP, "XCP "},
+ 644          {0x03,BIT_ZDIR,AxisErrDiff_BIT_ZDIR,"ZDIR"},
+ 645          {0x07,BIT_ZCP, AxisErrDiff_BIT_ZCP, "ZCP "},
+ 646          
+ 647          
+ 648          {0x0C,BIT_XDIR,AxisErrDiff_BIT_XDIR,"XDIR"},
+ 649          {0x0D,BIT_XCP, AxisErrDiff_BIT_XCP, "XCP "},
+ 650          {0x03,BIT_ZDIR,AxisErrDiff_BIT_ZDIR,"ZDIR"},
+ 651          {0x07,BIT_ZCP, AxisErrDiff_BIT_ZCP, "ZCP "},
+ 652          
+ 653          };
+ 654          
+ 655          
+ 656          
+ 657          
+ 658          /*
+ 659          *****************************************************************************
+ 660          * CheckAxis -  ÒÔÖ¸¶¨µÄ²âÊÔÊ¸Á¿²âÊÔ×öÖáÐÅºÅ²âÊÔ
+ 661          * DESCRIPTION: -
+ 662          *
+ 663          * Input: AxisTestCode ²âÊÔÊ¸Á¿
+ 664          * Output:*SysErrMap ³ö´í¼ÇÂ¼
+ 665          * Returns: Err_Pass Err_unPass Err_Timeout  ²âÊÔÍ¨¹ý/Î´Í¨¹ý/³¬Ê±
+ 666          *
+ 667          *****************************************************************************
+ 668          */
+ 669          U8 CheckAxis(struct _AxisTestCode AxisTestCode,struct _SysErrDiff *SysErrMap)
+ 670          {
+ 671   1          U16 Timeout;
+ 672   1          U8 InData;
+ 673   1          U8 Retry;
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 12  
+
+ 674   1      
+ 675   1          Bool BitIsOne;
+ 676   1          U8 Trig;
+ 677   1      
+ 678   1      
+ 679   1          TxdData.CMD = CMD_SetOutput;
+ 680   1          TxdData.DataLen = 0x04;
+ 681   1          TxdData.DataBuf[0] = 0x55;
+ 682   1          TxdData.DataBuf[1] = 0x55;
+ 683   1          TxdData.DataBuf[2] = 0x55;
+ 684   1          TxdData.DataBuf[3] = AxisTestCode.TestCode&0x0F;
+ 685   1          TxdData.CheckByte = TxdHeader0  + CMD_SetOutput +0x00;
+ 686   1          Trig = 0;
+ 687   1          Retry = 5;
+ 688   1          if(SendCMDPackage(100,CMD_SetOutput,10)){
+ 689   2              do{
+ 690   3                  InData = XBYTE[IN4_Port_Addr];
+ 691   3                  if((InData&AxisTestCode.ReadBit)== 0){//¶Á³ö×´Ì¬
+ 692   4                      BitIsOne = false;
+ 693   4                  }else{
+ 694   4                      BitIsOne = true;
+ 695   4                  }
+ 696   3                  //DIR ¸ßµçÆ½Ê±¼ä5ms DIR ÖÜÆÚÔ¼ 400ms
+ 697   3                  //CP ¸ßµçÆ½Ê±¼äÔ¼ 200ms  ÖÜÆÚ Ô¼ 400ms  5000*1us = 500ms  Èç¹û500msÄÚÃ»ÓÐÐÅºÅ±ä»¯,ÎÒÃÇÈÏÎªÃ»ÓÐ
+             -ÐÅºÅ
+ 698   3                  Timeout = 5000;
+ 699   3                  do{
+ 700   4                      InData = XBYTE[IN4_Port_Addr];
+ 701   4                      if(((InData&AxisTestCode.ReadBit)== 0)&&(BitIsOne == true)){//-----|________
+ 702   5                          Trig ++;
+ 703   5                          if(Trig > 2){
+ 704   6                              Retry = 1;
+ 705   6                          }
+ 706   5                          break;
+ 707   5                      }else if(((InData&AxisTestCode.ReadBit)== AxisTestCode.ReadBit)&&(BitIsOne == false)){//__
+             -______|---------
+ 708   5                          Trig ++;
+ 709   5                          if(Trig > 2){
+ 710   6                              Retry = 1;
+ 711   6                          }
+ 712   5                          break;
+ 713   5                      }
+ 714   4                      Delay_50us(5);
+ 715   4                      LED1 ^= 0x01;
+ 716   4                      Timeout--;
+ 717   4                  }while(Timeout);
+ 718   3      
+ 719   3                  LED0 ^= 0x01;
+ 720   3      
+ 721   3                  Retry--;
+ 722   3                  if(Retry == 0){
+ 723   4                      break;
+ 724   4                  }
+ 725   3      
+ 726   3              }while(Retry);
+ 727   2      
+ 728   2              GUI_GotoXY(StatusDispPosX,StatusDispPosY);
+ 729   2      
+ 730   2              if(Trig > 2){
+ 731   3                  GUI_DispString(AxisTestCode.AxisText);
+ 732   3                  GUI_DispString(" OK");
+ 733   3                  //GUI_Delay(2000);
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 13  
+
+ 734   3                  return Err_Pass;
+ 735   3              }else{
+ 736   3                  SysErrMap->AxisErrDiff |= AxisTestCode.SysErrMap_Mask;
+ 737   3                  if(Timeout){
+ 738   4                      GUI_GotoXY(StatusDispPosX,StatusDispPosY);
+ 739   4                      GUI_DispString(AxisTestCode.AxisText);
+ 740   4                      GUI_DispString(" Err!");
+ 741   4                      //GUI_Delay(3000);
+ 742   4                      return Err_unPass;
+ 743   4                  }else{
+ 744   4                      GUI_DispStringAt("Timeout    ",StatusDispPosX,StatusDispPosY);
+ 745   4                      //GUI_Delay(2000);
+ 746   4                      return Err_Timeout;
+ 747   4                  }
+ 748   3              }
+ 749   2      
+ 750   2          }else{
+ 751   2                  GUI_DispStringAt("Timeout    ",StatusDispPosX,StatusDispPosY);
+ 752   2                  //GUI_Delay(2000);
+ 753   2                  return Err_Timeout;
+ 754   2          }
+ 755   1      
+ 756   1      }
+ 757          
+ 758          /*
+ 759          *****************************************************************************
+ 760          * K1_AxisTest - ÖáÐÅºÅ²âÊÔ
+ 761          * DESCRIPTION: -
+ 762          * Õï¶ÏÆ÷Í¨ÖªK1´ò¿ªÖáÐÅºÅ Õï¶ÏÆ÷¼ì²âÓÐÎÞ¸ÃÐÅºÅ
+ 763          * ±¾²âÊÔ½ö½ö¼ì²âÁËÓÐÎÞÐÅºÅ,²»ÄÜ±£Ö¤ÐÅºÅÕýÈ·ÐÔ
+ 764          * Input:
+ 765          * Output:*SysErrMap ³ö´í¼ÇÂ¼
+ 766          * Returns: Err_Pass Err_unPass Err_Timeout  ²âÊÔÍ¨¹ý/Î´Í¨¹ý/³¬Ê±
+ 767          *
+ 768          *****************************************************************************
+ 769          */
+ 770          U8 K1_AxisTest(struct _SysErrDiff *SysErrMap)
+ 771          {
+ 772   1      
+ 773   1      #define TestCodeSize (sizeof(AxisTestCode)/sizeof(struct _AxisTestCode))
+ 774   1      
+ 775   1          U16 U16Count;
+ 776   1          U8 TimeoutCount;
+ 777   1          U8 unPassCount;
+ 778   1          U8 ReturnCode;
+ 779   1      
+ 780   1          GUI_DispStringAtBar("-¼ì²âÖáÐÅºÅ-",TitleDispPosX,TitleDispPosY,LCD_XSIZE-1,GUI_TA_HCENTER);
+ 781   1          for(U16Count = 0; U16Count < TestCodeSize; U16Count ++){
+ 782   2      
+ 783   2              ProgBar(TitleDispPosY+2, 32, 128+32,U16Count,TestCodeSize);
+ 784   2              ReturnCode = CheckAxis(AxisTestCode[U16Count],SysErrMap);
+ 785   2              if(ReturnCode == Err_Timeout){//¼ì²éÊÇ·ñ³¬Ê±
+ 786   3                  TimeoutCount++;
+ 787   3                  if(TimeoutCount > MAXTimeoutCount){//³¬Ê±´ÎÊýÌ«¶àÁË
+ 788   4                      GUI_Clear();
+ 789   4                      GUI_DispStringAt("³¬Ê±´ÎÊýÌ«¶à!",StatusDispPosX,StatusDispPosY);
+ 790   4                      GUI_Delay(3000);
+ 791   4                      return Err_Timeout;
+ 792   4                  }
+ 793   3              }
+ 794   2              if(ReturnCode == Err_unPass){
+ 795   3                  unPassCount++;
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 14  
+
+ 796   3                  if(unPassCount > 3){
+ 797   4                     // return Err_unPass;
+ 798   4                  }
+ 799   3              }
+ 800   2          }
+ 801   1          if(unPassCount == 0){
+ 802   2              return Err_Pass;
+ 803   2          }else{
+ 804   2              return Err_unPass;
+ 805   2          }
+ 806   1      
+ 807   1      #undef TestCodeSize
+ 808   1      }
+ 809          
+ 810          /*
+ 811          *****************************************************************************
+ 812          * K1_CheckRelay - ¼ÌµçÆ÷Í¨¶Ï²âÊÔ
+ 813          * DESCRIPTION: -
+ 814          * Õï¶ÏÆ÷Í¨ÖªK1ºÏÉÏ/¹Ø¶Ï¼ÌµçÆ÷ Õï¶ÏÆ÷¶ÁÈë½Ó¿Ú¼ì²é
+ 815          * Input:
+ 816          * Output:*SysErrMap ³ö´í¼ÇÂ¼
+ 817          * Returns: Err_Pass Err_unPass Err_Timeout  ²âÊÔÍ¨¹ý/Î´Í¨¹ý/³¬Ê±
+ 818          *
+ 819          *****************************************************************************
+ 820          */
+ 821          U8 K1_CheckRelay(struct _SysErrDiff *SysErrMap)
+ 822          {
+ 823   1          U8 InData;
+ 824   1      
+ 825   1          Bool FailFlag;
+ 826   1          FailFlag = false;
+ 827   1      
+ 828   1          GUI_DispStringAtBar("-¼ì²â¼ÌµçÆ÷-",TitleDispPosX,TitleDispPosY,LCD_XSIZE-1,GUI_TA_HCENTER);
+ 829   1      
+ 830   1          GUI_SetEnFont(En_8x16);
+ 831   1          TxdData.CMD = CMD_SetOutput;
+ 832   1          TxdData.DataLen = 0x04;
+ 833   1          TxdData.DataBuf[0] = 0x55;
+ 834   1          TxdData.DataBuf[1] = 0x55;
+ 835   1          TxdData.DataBuf[2] = 0x55;
+ 836   1          TxdData.DataBuf[3] = 0x0F;//¼ÌµçÆ÷¶Ï¿ª
+ 837   1          TxdData.CheckByte = TxdHeader0  + CMD_SetOutput +0x00;
+ 838   1      
+ 839   1          if(SendCMDPackage(100,CMD_SetOutput,10)){
+ 840   2              Delayms(100);//
+ 841   2              InData = XBYTE[IN3_Port_Addr];
+ 842   2              #if Debug == true
+ 843   2              GUI_DispHexAt(InData,StatusDispPosX,StatusDispPosY+2,2);
+ 844   2              #endif
+ 845   2              if((InData&BIT_XMRDY1)== BIT_XMRDY1){
+ 846   3                  GUI_DispStringAt("XMRDY OK",StatusDispPosX,StatusDispPosY);
+ 847   3              }else{
+ 848   3                  SysErrMap->MiscErrDiffByteL |= MiscByteL_BIT_XMRDY1;
+ 849   3                  GUI_DispStringAt("XMRDY Err",StatusDispPosX,StatusDispPosY);
+ 850   3                  FailFlag = true;
+ 851   3              }
+ 852   2              if((InData&BIT_ZMRDY1)== BIT_ZMRDY1){
+ 853   3                  GUI_DispStringAt("ZMRDY OK",StatusDispPosX+80,StatusDispPosY);
+ 854   3              }else{
+ 855   3                  SysErrMap->MiscErrDiffByteL |= MiscByteL_BIT_ZMRDY1;
+ 856   3                  GUI_DispStringAt("ZMRDY Err",StatusDispPosX+80,StatusDispPosY);
+ 857   3                  FailFlag = true;
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 15  
+
+ 858   3              }
+ 859   2              LED0 ^= 0x01;
+ 860   2          }else{
+ 861   2              GUI_DispStringAt("Timeout    ",StatusDispPosX,StatusDispPosY);
+ 862   2              #if Debug == true
+ 863   2              GUI_Delay(1000);
+ 864   2              #endif
+ 865   2              return Err_Timeout;
+ 866   2          }
+ 867   1      //#if Debug == true
+ 868   1      //    GUI_Delay(3000);
+ 869   1      //#endif
+ 870   1      //-------------------------------------------
+ 871   1          TxdData.DataBuf[3] = 0x3F;//¼ÌµçÆ÷ºÏÉÏ
+ 872   1          if(SendCMDPackage(100,CMD_SetOutput,10)){
+ 873   2              Delayms(100);//
+ 874   2              InData = XBYTE[IN3_Port_Addr];
+ 875   2      
+ 876   2              #if Debug == true
+ 877   2              GUI_DispHexAt(InData,StatusDispPosX,StatusDispPosY+2,2);
+ 878   2              #endif
+ 879   2      
+ 880   2              if((InData&BIT_XMRDY1)== 0){
+ 881   3                  GUI_DispStringAt("XMRDY OK",StatusDispPosX,StatusDispPosY);
+ 882   3              }else{
+ 883   3                  SysErrMap->MiscErrDiffByteL |= MiscByteL_BIT_XMRDY1;
+ 884   3                  GUI_DispStringAt("XMRDY Err",StatusDispPosX,StatusDispPosY);
+ 885   3                  FailFlag = true;
+ 886   3              }
+ 887   2              if((InData&BIT_ZMRDY1)== 0){
+ 888   3                  GUI_DispStringAt("ZMRDY OK",StatusDispPosX+80,StatusDispPosY);
+ 889   3              }else{
+ 890   3                  SysErrMap->MiscErrDiffByteL |= MiscByteL_BIT_ZMRDY1;
+ 891   3                  GUI_DispStringAt("ZMRDY Err",StatusDispPosX+80,StatusDispPosY);
+ 892   3                  FailFlag = true;
+ 893   3              }
+ 894   2              LED0 ^= 0x01;
+ 895   2          }else{
+ 896   2              GUI_DispStringAt("Timeout    ",StatusDispPosX,StatusDispPosY);
+ 897   2              #if Debug == true
+ 898   2              GUI_Delay(1000);
+ 899   2              #endif
+ 900   2              return Err_Timeout;
+ 901   2      
+ 902   2          }
+ 903   1      //#if Debug == true
+ 904   1      //    GUI_Delay(3000);
+ 905   1      //#endif
+ 906   1          if(FailFlag == true){
+ 907   2              return Err_unPass;
+ 908   2          }else{
+ 909   2              return Err_Pass;
+ 910   2          }
+ 911   1      }
+ 912          
+ 913          
+ 914          /*
+ 915          *****************************************************************************
+ 916          * CheckIOOutput -  ÒÔVector²âÊÔK1µÄIO
+ 917          * DESCRIPTION: -
+ 918          *
+ 919          * Input: Vector ²âÊÔÊ¸Á¿
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 16  
+
+ 920          * Output:*SysErrMap ³ö´í¼ÇÂ¼
+ 921          * Returns: Err_Pass Err_unPass Err_Timeout  ²âÊÔÍ¨¹ý/Î´Í¨¹ý/³¬Ê±
+ 922          *
+ 923          *****************************************************************************
+ 924          */
+ 925          U8 CheckIOOutput(U32 Vector,struct _SysErrDiff *SysErrMap)
+ 926          {
+ 927   1      
+ 928   1          U8 InData;
+ 929   1          U8 VertorByteH;
+ 930   1          U8 VertorByteL;
+ 931   1          Bool FailFlag;
+ 932   1      
+ 933   1          VertorByteH = (U8)(Vector>>8);
+ 934   1          VertorByteL = (U8)(Vector);
+ 935   1      
+ 936   1      
+ 937   1          FailFlag = false;
+ 938   1          TxdData.CMD = CMD_SetOutput;
+ 939   1          TxdData.DataLen = 0x04;
+ 940   1          TxdData.DataBuf[0] = VertorByteL;//Z00--Z07
+ 941   1          TxdData.DataBuf[1] = VertorByteH;//Z08--Z15
+ 942   1          TxdData.DataBuf[2] = 0x55;
+ 943   1          TxdData.DataBuf[3] = 0x0F;//¼ÌµçÆ÷¶Ï¿ª
+ 944   1          TxdData.CheckByte = TxdHeader0  + CMD_SetOutput +0x00;
+ 945   1          FailFlag = false;
+ 946   1          if(SendCMDPackage(100,CMD_SetOutput,10)){
+ 947   2      
+ 948   2              InData = ~XBYTE[K1OutputPortA];
+ 949   2              InData = InPutDataBitSwap[InData];//½»»»Î»
+ 950   2              if(InData != VertorByteL){
+ 951   3                  SysErrMap->OutputErrDiffByteL |= InData ^ VertorByteL;
+ 952   3                  GUI_DispStringAt("ErrBit@A  ",StatusDispPosX,StatusDispPosY);
+ 953   3                  GUI_DispHexAt(InData,StatusDispPosX+0*Char_XSIZE,StatusDispPosY+2,2);
+ 954   3                  FailFlag = true;
+ 955   3              }
+ 956   2              InData = ~XBYTE[K1OutputPortB];
+ 957   2              if(InData != VertorByteH){
+ 958   3                  SysErrMap->OutputErrDiffByteH |= InData ^ VertorByteH;
+ 959   3                  GUI_DispStringAt("ErrBit@B  ",StatusDispPosX,StatusDispPosY);
+ 960   3                  GUI_DispHexAt(InData,StatusDispPosX+3*Char_XSIZE,StatusDispPosY+2,2);
+ 961   3                  GUI_DispHexAt(VertorByteH,StatusDispPosX+6*Char_XSIZE,StatusDispPosY+2,2);
+ 962   3                  GUI_DispHexAt(InData ^ VertorByteH,StatusDispPosX+9*Char_XSIZE,StatusDispPosY+2,2);
+ 963   3                  FailFlag = true;
+ 964   3                 // WaitKey();
+ 965   3                  GUI_Delay(4000);
+ 966   3      
+ 967   3              }
+ 968   2      
+ 969   2      //#if Debug == true
+ 970   2      //        GUI_Delay(1000);
+ 971   2      //#endif
+ 972   2              if(FailFlag == true){
+ 973   3                  GUI_DispStringAt("unPass",StatusDispPosX,StatusDispPosY);
+ 974   3                  return Err_unPass;
+ 975   3              }else{
+ 976   3                  GUI_DispStringAt("Pass",StatusDispPosX,StatusDispPosY);
+ 977   3                  return Err_Pass;
+ 978   3              }
+ 979   2          }else{
+ 980   2              GUI_DispStringAt("Timeout    ",StatusDispPosX,StatusDispPosY);
+ 981   2              return Err_Timeout;
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 17  
+
+ 982   2          }
+ 983   1      }
+ 984          //K1
+ 985          /*
+ 986          U32 code IOOutputTestVector[] = {
+ 987          0x00001,0x00002,0x00004,0x00008,0x00010,0x00020,0x00040,0x00080,
+ 988          0x00100,0x00200,0x00400,0x00800,0x01000,0x02000,0x04000,0x08000,
+ 989          0x10000,0x20000,
+ 990          0x3FFFE,0x3FFFD,0x3FFFB,0x3FFF7,0x3FFEF,0x3FFDF,0x3FFBF,0x3FF7F,
+ 991          0x3FEFF,0x3FDFF,0x3FBFF,0x3F7FF,0x3EFFF,0x3DFFF,0x3BFFF,0x37FFF,
+ 992          0x2FFFF,0x1FFFF,
+ 993          0x00000,0x3FFFF,
+ 994          };
+ 995          */
+ 996          U16 code IOOutputTestVector[] = {
+ 997          0x0001,0x0002,0x0004,0x0008,0x0010,0x0020,0x0040,0x0080,
+ 998          0x0100,0x0200,0x0400,0x0800,0x1000,0x2000,0x4000,0x8000,
+ 999          0x0000,0x0000,
+1000          0xFFFE,0xFFFD,0xFFFB,0xFFF7,0xFFEF,0xFFDF,0xFFBF,0xFF7F,
+1001          0xFEFF,0xFDFF,0xFBFF,0xF7FF,0xEFFF,0xDFFF,0xBFFF,0x7FFF,
+1002          0xFFFF,0xFFFF,
+1003          0x0000,0xFFFF,
+1004          };
+1005          
+1006          
+1007          /*
+1008          *****************************************************************************
+1009          * K1_IOOutputVertorTest - K1Êä³ö¿Ú²âÊÔ
+1010          * DESCRIPTION: -
+1011          * Õï¶ÏÆ÷Í¨ÖªK1ÉèÖÃÖ¸¶¨Êä³ö Õï¶ÏÆ÷¶ÁÈë½Ó¿ÚÖµ ÅÐ¶Ï
+1012          * Input:
+1013          * Output:*SysErrMap ³ö´í¼ÇÂ¼
+1014          * Returns: Err_Pass Err_unPass Err_Timeout  ²âÊÔÍ¨¹ý/Î´Í¨¹ý/³¬Ê±
+1015          *
+1016          *****************************************************************************
+1017          */
+1018          U8 K1_IOOutputVertorTest(struct _SysErrDiff *SysErrMap)
+1019          {
+1020   1          #define BitSize (sizeof(IOOutputTestVector)/sizeof(U32))
+1021   1      
+1022   1          U8 BitCount;
+1023   1          U8 TimeoutCount;
+1024   1          U8 ReturnCode;
+1025   1          U8 unPassCount;
+1026   1      
+1027   1          GUI_DispStringAtBar("-¼ì²âÊä³ö¿Ú-",TitleDispPosX,TitleDispPosY,LCD_XSIZE-1,GUI_TA_HCENTER);
+1028   1          for(BitCount = 0; BitCount < BitSize; BitCount++){
+1029   2              ReturnCode = CheckIOOutput(IOOutputTestVector[BitCount],SysErrMap);
+1030   2              ProgBar(TitleDispPosY+2, 32, 128+32,BitCount,BitSize);
+1031   2              if(ReturnCode == Err_Timeout){//¼ì²éÊÇ·ñ³¬Ê±
+1032   3                  TimeoutCount++;
+1033   3                  if(TimeoutCount > MAXTimeoutCount){//³¬Ê±´ÎÊýÌ«¶àÁË
+1034   4                      GUI_Clear();
+1035   4                      GUI_DispStringAt("³¬Ê±´ÎÊýÌ«¶à!",StatusDispPosX,StatusDispPosY);
+1036   4                      GUI_Delay(3000);
+1037   4                      return Err_Timeout;
+1038   4                  }
+1039   3              }
+1040   2              if(ReturnCode == Err_unPass){
+1041   3                  unPassCount++;
+1042   3                  if(unPassCount > 3){
+1043   4                      //return Err_unPass;
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 18  
+
+1044   4                  }
+1045   3              }
+1046   2          }
+1047   1          if(unPassCount == 0){
+1048   2              return Err_Pass;
+1049   2          }else{
+1050   2              return Err_unPass;
+1051   2          }
+1052   1      
+1053   1      
+1054   1      #undef BitSize
+1055   1      
+1056   1      }
+1057          
+1058          U32 code IOInputTestVector[] = {
+1059          0x00001,0x00002,0x00004,0x00008,0x00010,0x00020,0x00040,0x00080,
+1060          0x00100,0x00200,0x00400,0x00800,0x01000,0x02000,0x04000,0x08000,
+1061          0x10000,0x20000,
+1062          0x3FFFE,0x3FFFD,0x3FFFB,0x3FFF7,0x3FFEF,0x3FFDF,0x3FFBF,0x3FF7F,
+1063          0x3FEFF,0x3FDFF,0x3FBFF,0x3F7FF,0x3EFFF,0x3DFFF,0x3BFFF,0x37FFF,
+1064          0x2FFFF,0x1FFFF,
+1065          0x00000,0x3FFFF,
+1066          };
+1067          
+1068          
+1069          
+1070          
+1071          /*
+1072          *****************************************************************************
+1073          * CheckIOInput -  //ÒÔÖ¸¶¨²âÊÔÊ¸Á¿À´²âÊÔK1µÄÊäÈë¿Ú
+1074          * DESCRIPTION: -
+1075          *
+1076          * Input:  Vector  ²âÊÔÊ¸Á¿
+1077          * Output:  * SysErrMap  ³ö´í¼ÇÂ¼
+1078          * Returns: Err_Pass Err_unPass Err_Timeout  ²âÊÔÍ¨¹ý/Î´Í¨¹ý/³¬Ê±
+1079          *
+1080          *****************************************************************************
+1081          */
+1082          U8 CheckIOInput(U32 Vector,struct _SysErrDiff * SysErrMap)
+1083          {
+1084   1      //    U16 Timeout;
+1085   1      
+1086   1          U8 VertorByteH;
+1087   1          U8 VertorByteM;
+1088   1          U8 VertorByteL;
+1089   1      
+1090   1          U8 PortDataH;
+1091   1          U8 PortDataM;
+1092   1          U8 PortDataL;
+1093   1          Bool FailFlag;
+1094   1          FailFlag = false;
+1095   1      
+1096   1      
+1097   1          SetPortData(Vector,false);
+1098   1      
+1099   1      
+1100   1          TxdData.CMD = CMD_ReturnAll;
+1101   1          TxdData.DataLen = 0x00;
+1102   1          TxdData.CheckByte = TxdHeader0  + CMD_ReturnAll +0x00;
+1103   1      
+1104   1          if(SendCMDPackage(10,ACK_ReturnAll,4)){
+1105   2              PortDataL = RxdData.DataBuf[0];
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 19  
+
+1106   2              PortDataM = RxdData.DataBuf[1];
+1107   2              PortDataH = RxdData.DataBuf[2];
+1108   2      
+1109   2      //    if(Timeout){//Ã»ÓÐ³¬Ê±,¼ì²éMCUÊäÈë
+1110   2              //µÈ´ý·¢ËÍµÄÊ±ºò×öÒ»Ð©¼ÆËã
+1111   2              VertorByteH = (U8)(Vector>>16);
+1112   2              VertorByteM = (U8)(Vector>>8);
+1113   2              VertorByteL = (U8)(Vector);
+1114   2      
+1115   2      
+1116   2              if(VertorByteH != PortDataH){
+1117   3                  SysErrMap->InputErrDiffByteH |= (VertorByteH ^ PortDataH);            //±£´æ²»Í¬Bit
+1118   3                  FailFlag = true;
+1119   3              }
+1120   2              if(VertorByteM != PortDataM){
+1121   3                  SysErrMap->InputErrDiffByteM |= (VertorByteM ^ PortDataM);
+1122   3                  FailFlag = true;
+1123   3              }
+1124   2              if(VertorByteL != PortDataL){
+1125   3                  SysErrMap->InputErrDiffByteL |= (VertorByteL ^ PortDataL);
+1126   3                  FailFlag = true;
+1127   3              }
+1128   2      #if Debug == true
+1129   2              GUI_SetEnFont(En_5x8);
+1130   2              GUI_DispHexAt(PortDataH,0*Char_XSIZE+StatusDispPosX,StatusDispPosY+2,2);
+1131   2              GUI_DispHexAt(PortDataM,2*Char_XSIZE+StatusDispPosX,StatusDispPosY+2,2);
+1132   2              GUI_DispHexAt(PortDataL,4*Char_XSIZE+StatusDispPosX,StatusDispPosY+2,2);
+1133   2              GUI_DispHexAt(SysErrMap->InputErrDiffByteH,10*Char_XSIZE+StatusDispPosX,StatusDispPosY+2,2);
+1134   2              GUI_DispHexAt(SysErrMap->InputErrDiffByteM,12*Char_XSIZE+StatusDispPosX,StatusDispPosY+2,2);
+1135   2              GUI_DispHexAt(SysErrMap->InputErrDiffByteL,14*Char_XSIZE+StatusDispPosX,StatusDispPosY+2,2);
+1136   2              GUI_DispHexAt(Vector,0*Char_XSIZE+StatusDispPosX,StatusDispPosY+3,6);
+1137   2              GUI_SetEnFont(En_8x16);
+1138   2      #endif
+1139   2              if(FailFlag == true){
+1140   3                  return Err_unPass;
+1141   3              }else{
+1142   3                  return Err_Pass;
+1143   3              }
+1144   2      
+1145   2          }else{
+1146   2              return Err_Timeout;
+1147   2          }
+1148   1      }
+1149          
+1150          
+1151          /*
+1152          *****************************************************************************
+1153          * K1_IOInputVertorTest - K1ÊäÈë¿Ú²âÊÔ
+1154          * DESCRIPTION: -
+1155          * Õï¶ÏÆ÷ÉèÖÃÖ¸¶¨µÄÊä³ö ²¢ÒªÇóK1·µ»Ø¶ÁÖµ ÅÐ¶Ï
+1156          * Input:
+1157          * Output:
+1158          * Returns:
+1159          *
+1160          *****************************************************************************
+1161          */
+1162          U8 K1_IOInputVertorTest(struct _SysErrDiff * SysErrMap)
+1163          {
+1164   1          #define BitSize (sizeof(IOInputTestVector)/sizeof(U32))
+1165   1      
+1166   1          U8 BitCount;
+1167   1          U8 TimeoutCount;
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 20  
+
+1168   1          U8 ReturnCode;
+1169   1          U8 unPassCount;
+1170   1      
+1171   1          //Çå¿Õ³ö´í¼ÇÂ¼
+1172   1          SysErrMap->InputErrDiffByteH = 0;
+1173   1          SysErrMap->InputErrDiffByteM = 0;
+1174   1          SysErrMap->InputErrDiffByteL = 0;
+1175   1      //Ç¿ÖÆÊä³öÈ«0
+1176   1          SetPortData(0x000000,true);
+1177   1          GUI_DispStringAtBar("-¼ì²âÊäÈë¿Ú-",TitleDispPosX,TitleDispPosY,LCD_XSIZE-1,GUI_TA_HCENTER);
+1178   1      
+1179   1          for(BitCount = 0; BitCount < BitSize; BitCount++){
+1180   2              ReturnCode = CheckIOInput(IOInputTestVector[BitCount],SysErrMap);
+1181   2              ProgBar(TitleDispPosY+2, 32, 128+32,BitCount,BitSize);
+1182   2              if(ReturnCode == Err_Timeout){//¼ì²éÊÇ·ñ³¬Ê±
+1183   3                  TimeoutCount++;
+1184   3                  if(TimeoutCount > MAXTimeoutCount){//³¬Ê±´ÎÊýÌ«¶àÁË
+1185   4                      GUI_Clear();
+1186   4                      GUI_DispStringAt("³¬Ê±´ÎÊýÌ«¶à!",StatusDispPosX,StatusDispPosY);
+1187   4                      GUI_Delay(3000);
+1188   4                      return Err_Timeout;
+1189   4                  }
+1190   3              }
+1191   2              if(ReturnCode == Err_unPass){
+1192   3                  unPassCount++;
+1193   3                  if(unPassCount > 3){//???Èç¹û²âÊÔÖÐ³ö´í´ÎÊý¶àÁË,ÎÒÃÇÔõÃ´´¦Àíå?
+1194   4                    //  return Err_unPass;
+1195   4                  }
+1196   3              }
+1197   2          }
+1198   1          if(unPassCount == 0){
+1199   2              return Err_Pass;
+1200   2          }else{
+1201   2              return Err_unPass;
+1202   2          }
+1203   1      
+1204   1      #undef BitSize
+1205   1      }
+1206          
+1207          /*
+1208          *****************************************************************************
+1209          * FindWhichBit - ²éÕÒ³öµÚErrNum¸ö³ö´íÎ»ÖÃµÄÎ»Öµ ÓÉµÍµ½¸ß¿ªÊ¼
+1210          * DESCRIPTION: -
+1211          //¼ì²âË³Ðò:
+1212          //InputErrDiffByteL --> InputErrDiffByteM --> InputErrDiffByteH
+1213          //-->OutputErrDiffByteL -->OutputErrDiffByteH
+1214          //-->MiscErrDiffByteL
+1215          //-->AxisErrDiff
+1216          //¸ÃË³Ðò¸úÏÔÊ¾ÄÚÈÝÏà¹Ø,µ÷ÕûÊ±ÐèÒªµ÷ÕûÏÔÊ¾ÄÚÈÝ±í¸ñ
+1217          * Input: U8 ErrNum  µÚ¼¸¸ö³ö´íÎ»
+1218          * Output:
+1219          * Returns:  ³ö´íÎ»ÖÃ
+1220          *
+1221          *****************************************************************************
+1222          */
+1223          U8 FindWhichBit(struct _SysErrDiff SysErrMap,U8 ErrNum)
+1224          {
+1225   1          U8 WhitchBit;
+1226   1          U8 U8Count;
+1227   1          U8 ErrNumCount;
+1228   1          U8Count = 0;//BitµÄÎ»ÖÃ
+1229   1          ErrNumCount = 0;//ÓÉµÍµ½¸ßÍ³¼Æ1µÄ¸öÊý
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 21  
+
+1230   1      
+1231   1          //InputErrDiffByteL InputErrDiffByteM InputErrDiffByteH
+1232   1          if(SysErrMap.InputErrDiffByteL){
+1233   2              for(WhitchBit = 0; WhitchBit < 8; WhitchBit++){
+1234   3                  if((SysErrMap.InputErrDiffByteL)&(1<<WhitchBit)){
+1235   4                      if(ErrNumCount == ErrNum){
+1236   5                          return U8Count;
+1237   5                      }else{
+1238   5                          ErrNumCount++;
+1239   5                      }
+1240   4                  }
+1241   3                  U8Count++;
+1242   3              }
+1243   2          }
+1244   1          U8Count = 8;
+1245   1          if(SysErrMap.InputErrDiffByteM){
+1246   2              for(WhitchBit = 0; WhitchBit < 8; WhitchBit++){
+1247   3                  if((SysErrMap.InputErrDiffByteM)&(1<<WhitchBit)){
+1248   4                      if(ErrNumCount == ErrNum){
+1249   5                          return U8Count;
+1250   5                      }else{
+1251   5                          ErrNumCount++;
+1252   5                      }
+1253   4                  }
+1254   3                  U8Count++;
+1255   3              }
+1256   2          }
+1257   1          U8Count = 16;
+1258   1          if(SysErrMap.InputErrDiffByteH){
+1259   2              for(WhitchBit = 0; WhitchBit < 8; WhitchBit++){
+1260   3                  if((SysErrMap.InputErrDiffByteH)&(1<<WhitchBit)){
+1261   4                      if(ErrNumCount == ErrNum){
+1262   5                          return U8Count;
+1263   5                      }else{
+1264   5                          ErrNumCount++;
+1265   5                      }
+1266   4                  }
+1267   3                  U8Count++;
+1268   3              }
+1269   2          }
+1270   1          U8Count = 24;
+1271   1          //OutputErrDiffByteL OutputErrDiffByteH
+1272   1          if(SysErrMap.OutputErrDiffByteL){
+1273   2              for(WhitchBit = 0; WhitchBit < 8; WhitchBit++){
+1274   3                  if((SysErrMap.OutputErrDiffByteL)&(1<<WhitchBit)){
+1275   4                      if(ErrNumCount == ErrNum){
+1276   5                          return U8Count;
+1277   5                      }else{
+1278   5                          ErrNumCount++;
+1279   5                      }
+1280   4                  }
+1281   3                  U8Count++;
+1282   3              }
+1283   2          }
+1284   1          U8Count = 32;
+1285   1          if(SysErrMap.OutputErrDiffByteH){
+1286   2              for(WhitchBit = 0; WhitchBit < 8; WhitchBit++){
+1287   3                  if((SysErrMap.OutputErrDiffByteH)&(1<<WhitchBit)){
+1288   4                      if(ErrNumCount == ErrNum){
+1289   5                          return U8Count;
+1290   5                      }else{
+1291   5                          ErrNumCount++;
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 22  
+
+1292   5                      }
+1293   4                  }
+1294   3                  U8Count++;
+1295   3              }
+1296   2          }
+1297   1          U8Count = 40;
+1298   1          //MiscErrDiffByteL
+1299   1          if(SysErrMap.MiscErrDiffByteL){
+1300   2              for(WhitchBit = 0; WhitchBit < 8; WhitchBit++){
+1301   3                  if((SysErrMap.MiscErrDiffByteL)&(1<<WhitchBit)){
+1302   4                      if(ErrNumCount == ErrNum){
+1303   5                          return U8Count;
+1304   5                      }else{
+1305   5                          ErrNumCount++;
+1306   5                      }
+1307   4                  }
+1308   3                  U8Count++;
+1309   3              }
+1310   2          }
+1311   1          U8Count = 48;
+1312   1          //AxisErrDiff
+1313   1          if(SysErrMap.AxisErrDiff){
+1314   2              for(WhitchBit = 0; WhitchBit < 8; WhitchBit++){
+1315   3                  if((SysErrMap.AxisErrDiff)&(1<<WhitchBit)){
+1316   4                      if(ErrNumCount == ErrNum){
+1317   5                          return U8Count;
+1318   5                      }else{
+1319   5                          ErrNumCount++;
+1320   5                      }
+1321   4                  }
+1322   3                  U8Count++;
+1323   3              }
+1324   2          }
+1325   1      
+1326   1      }
+1327          /*
+1328          *****************************************************************************
+1329          * K1_CountErrBitNum - Í³¼Æ³ö´íÎ»µÄ¸öÊý
+1330          * DESCRIPTION: -
+1331          *
+1332          * Input: struct _SysErrDiff SysErrMap
+1333          * Output:
+1334          * Returns: ³ö´íÎ»¸öÊý
+1335          *
+1336          *****************************************************************************
+1337          */
+1338          U8 K1_CountErrBitNum(struct _SysErrDiff SysErrMap)
+1339          {
+1340   1          U8 WhitchBit;
+1341   1          U8 ErrNumCount;
+1342   1          ErrNumCount = 0;
+1343   1          //InputErrDiffByteL InputErrDiffByteM InputErrDiffByteH
+1344   1          if(SysErrMap.InputErrDiffByteL){
+1345   2              for(WhitchBit = 0; WhitchBit < 8; WhitchBit++){
+1346   3                  if((SysErrMap.InputErrDiffByteL)&(1<<WhitchBit)){
+1347   4                      ErrNumCount++;
+1348   4                  }
+1349   3              }
+1350   2          }
+1351   1          if(SysErrMap.InputErrDiffByteM){
+1352   2              for(WhitchBit = 0; WhitchBit < 8; WhitchBit++){
+1353   3                  if((SysErrMap.InputErrDiffByteM)&(1<<WhitchBit)){
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 23  
+
+1354   4                      ErrNumCount++;
+1355   4                  }
+1356   3              }
+1357   2          }
+1358   1          if(SysErrMap.InputErrDiffByteH){
+1359   2              for(WhitchBit = 0; WhitchBit < 8; WhitchBit++){
+1360   3                  if((SysErrMap.InputErrDiffByteH)&(1<<WhitchBit)){
+1361   4                          ErrNumCount++;
+1362   4                  }
+1363   3              }
+1364   2          }
+1365   1          //OutputErrDiffByteL OutputErrDiffByteH
+1366   1          if(SysErrMap.OutputErrDiffByteL){
+1367   2              for(WhitchBit = 0; WhitchBit < 8; WhitchBit++){
+1368   3                  if((SysErrMap.OutputErrDiffByteL)&(1<<WhitchBit)){
+1369   4                          ErrNumCount++;
+1370   4                  }
+1371   3              }
+1372   2          }
+1373   1          if(SysErrMap.OutputErrDiffByteH){
+1374   2              for(WhitchBit = 0; WhitchBit < 8; WhitchBit++){
+1375   3                  if((SysErrMap.OutputErrDiffByteH)&(1<<WhitchBit)){
+1376   4                          ErrNumCount++;
+1377   4                  }
+1378   3              }
+1379   2          }
+1380   1          //MiscErrDiffByteL
+1381   1          if(SysErrMap.MiscErrDiffByteL){
+1382   2              for(WhitchBit = 0; WhitchBit < 8; WhitchBit++){
+1383   3                  if((SysErrMap.MiscErrDiffByteL)&(1<<WhitchBit)){
+1384   4                          ErrNumCount++;
+1385   4                  }
+1386   3              }
+1387   2          }
+1388   1          //AxisErrDiff
+1389   1          if(SysErrMap.AxisErrDiff){
+1390   2              for(WhitchBit = 0; WhitchBit < 8; WhitchBit++){
+1391   3                  if((SysErrMap.AxisErrDiff)&(1<<WhitchBit)){
+1392   4                       ErrNumCount++;
+1393   4                  }
+1394   3              }
+1395   2          }
+1396   1          return ErrNumCount;
+1397   1      }
+1398          void Bar(U8 Item_,U8 ItemNum_,U8 BarPosX,U8 BarNumPosX);
+1399          
+1400          
+1401          /*
+1402          *****************************************************************************
+1403          * K1_SysInputErrDisp - ²éÑ¯³ö´í¼ÇÂ¼
+1404          * DESCRIPTION: -
+1405          *
+1406          * @Para SysErrMap:³ö´í¼ÇÂ¼½á¹¹Ìå
+1407          * Return :
+1408          *
+1409          *****************************************************************************
+1410          */
+1411          void K1_SysInputErrDisp(struct _SysErrDiff SysErrMap)
+1412          {
+1413   1      
+1414   1          U8 ErrNum;//0-->ErrCount-1
+1415   1          U8 U8Count;
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 24  
+
+1416   1          Bool FindFlag;
+1417   1          ErrNum = 0;
+1418   1          U8Count = 0;//×·×Ù1µÄÎ»ÖÃ
+1419   1          FindFlag = false;
+1420   1      
+1421   1          while(1){
+1422   2              U8Count = FindWhichBit(SysErrMap,ErrNum);
+1423   2              GUI_DispStringAt(SysErrDispStr[U8Count],0,0);//ÏÔÊ¾³ö´íÄÚÈÝ
+1424   2              Bar(ErrNum,SysErrMap.ErrCountAll,125,120);
+1425   2      
+1426   2      
+1427   2              switch(WaitKey()){
+1428   3                  case Key_Up:
+1429   3                      break;
+1430   3                  case Key_Down:
+1431   3                      GUI_Delay(500);
+1432   3                      return;
+1433   3                      break;
+1434   3                  case Key_Right:
+1435   3                      if(ErrNum >= (SysErrMap.ErrCountAll-1)){
+1436   4                         ErrNum = 0;
+1437   4                      }else{
+1438   4                         ErrNum ++;
+1439   4                      }
+1440   3                      GUI_Delay(500);
+1441   3                      break;
+1442   3                  case Key_Left:
+1443   3                      if(ErrNum == 0){
+1444   4                         ErrNum = SysErrMap.ErrCountAll-1;
+1445   4                      }else{
+1446   4                         ErrNum --;
+1447   4                      }
+1448   3                      GUI_Delay(500);
+1449   3                      break;
+1450   3                  default:
+1451   3                      break;
+1452   3              }
+1453   2      
+1454   2          }
+1455   1      
+1456   1      }
+1457          
+1458          /*-------------------------------------------------------------------------
+1459           K1_Clear_SysErrMap
+1460           Çå¿Õ³ö´í¼ÇÂ¼
+1461          -------------------------------------------------------------------------*/
+1462          void K1_Clear_SysErrMap(struct _SysErrDiff *SysErrMap)
+1463          {
+1464   1          SysErrMap->InputErrDiffByteL = 0;
+1465   1          SysErrMap->InputErrDiffByteM = 0;
+1466   1          SysErrMap->InputErrDiffByteH = 0;
+1467   1          SysErrMap->OutputErrDiffByteH = 0;
+1468   1          SysErrMap->OutputErrDiffByteL = 0;
+1469   1      //    SysErrMap->MiscErrDiffByteH = 0;
+1470   1          SysErrMap->MiscErrDiffByteL = 0;
+1471   1          SysErrMap->AxisErrDiff        = 0;
+1472   1          SysErrMap->ErrCountAll = 0;
+1473   1      }
+1474          /*
+1475          *****************************************************************************
+1476          * K1_CheckPutUpRes - ¼ì²âK1µÄÉÏÀ­µç×èÓÐÄÄÐ©
+1477          * DESCRIPTION: -
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 25  
+
+1478          * Ô­ÀíÊÇÕï¶ÏÆ÷¹Ø¶ÏËùÓÐÊä³öºó,ÓÐÉÏÀ­µÄÊäÈë¿Ú,µçÆ½Îª1 ÎÞÉÏÀ­µÄÎª0
+1479          * Input:
+1480          * Output:
+1481          * Returns:
+1482          *
+1483          *****************************************************************************
+1484          */
+1485          void K1_CheckPutUpRes(void)
+1486          {
+1487   1      
+1488   1          U8 PortDataH;
+1489   1          U8 PortDataM;
+1490   1          U8 PortDataL;
+1491   1          Bool FailFlag;
+1492   1          U8 U8Count;
+1493   1          U8Count = 0;
+1494   1          CutOffAllPort();//
+1495   1      
+1496   1          GUI_DispStringAtBar("-¼ì²âÉÏÀ­µç×è-",TitleDispPosX,TitleDispPosY,LCD_XSIZE-1,GUI_TA_HCENTER);
+1497   1      
+1498   1          TxdData.CMD = CMD_ReturnAll;
+1499   1          TxdData.DataLen = 0x00;
+1500   1          TxdData.CheckByte = TxdHeader0  + CMD_ReturnAll+0x00;
+1501   1      
+1502   1          if(SendCMDPackage(1, ACK_ReturnAll,5)){
+1503   2              PortDataL = RxdData.DataBuf[0];
+1504   2              PortDataM = RxdData.DataBuf[1];
+1505   2              PortDataH = RxdData.DataBuf[2];
+1506   2      
+1507   2      
+1508   2              GUI_GotoXY(StatusDispPosX,StatusDispPosY);
+1509   2              GUI_SetEnFont(En_8x16);
+1510   2              FailFlag = true;
+1511   2              if(PortDataM&0x10){//T01
+1512   3                  GUI_DispString("T01 ");
+1513   3                  FailFlag = false;
+1514   3                  U8Count ++;
+1515   3              }
+1516   2              if(PortDataM&0x20){//T02
+1517   3                  GUI_DispString("T02 ");
+1518   3                  FailFlag = false;
+1519   3                  U8Count ++;
+1520   3              }
+1521   2              if(PortDataM&0x40){//T03
+1522   3                  GUI_DispString("T03 ");
+1523   3                  FailFlag = false;
+1524   3                  U8Count ++;
+1525   3      
+1526   3              }
+1527   2              if(PortDataM&0x80){//T04
+1528   3                  GUI_DispString("T04 ");
+1529   3                  FailFlag = false;
+1530   3                  U8Count ++;
+1531   3      
+1532   3              }
+1533   2      
+1534   2              if(PortDataM&0x01){//T05
+1535   3                  GUI_DispString("T05 ");
+1536   3                  FailFlag = false;
+1537   3                  U8Count ++;
+1538   3      
+1539   3              }
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 26  
+
+1540   2              if(PortDataM&0x02){//T06
+1541   3                  GUI_DispString("T06 ");
+1542   3                  FailFlag = false;
+1543   3                  U8Count ++;
+1544   3      
+1545   3              }
+1546   2              if(PortDataM&0x04){//T07
+1547   3                  GUI_DispString("T07 ");
+1548   3                  FailFlag = false;
+1549   3                  U8Count ++;
+1550   3      
+1551   3              }
+1552   2              if(PortDataM&0x08){//T08
+1553   3                  GUI_DispString("T08 ");
+1554   3                  FailFlag = false;
+1555   3                  U8Count ++;
+1556   3      
+1557   3              }
+1558   2              if(PortDataH&0x01){//DECZ
+1559   3                  GUI_DispString("DECZ ");
+1560   3                  FailFlag = false;
+1561   3                  U8Count ++;
+1562   3      
+1563   3              }
+1564   2              if(PortDataH&0x02){//DECX
+1565   3                  GUI_DispString("DECX ");
+1566   3                  FailFlag = false;
+1567   3                  U8Count ++;
+1568   3      
+1569   3              }
+1570   2             if(FailFlag == true){
+1571   3                  GUI_DispStringAtBar("-Ã»ÓÐÓÐÉÏÀ­µç×è-",TitleDispPosX,TitleDispPosY+2,LCD_XSIZE-1,GUI_TA_HCENTE
+             -R);
+1572   3             }else{
+1573   3                  GUI_DispStringAtBar("ÒÔÏÂÐÅºÅÓÐÉÏÀ­µç×è",TitleDispPosX,TitleDispPosY+2,LCD_XSIZE-1,GUI_TA_HCEN
+             -TER);
+1574   3                  GUI_SetEnFont(En_8x16);
+1575   3                  GUI_DispDecAt(U8Count,160,0,2);
+1576   3             }
+1577   2          }else{
+1578   2              GUI_DispStringAt("Timeout! ",StatusDispPosX,StatusDispPosY);
+1579   2          }
+1580   1          GUI_Delay(3000);
+1581   1      }
+1582          
+1583          /*
+1584          *****************************************************************************
+1585          * K1_OnlineCMDCheck -  ·¢ËÍÔÚÏßÃüÁî ¼ì²éK1ÊÇ·ñÔÚÏß
+1586          * DESCRIPTION: -
+1587          * ²¢·µ»ØMagicData
+1588          * Input:
+1589          * Output:
+1590          * Returns:
+1591          *
+1592          *****************************************************************************
+1593          */
+1594          Bool K1_OnlineCMDCheck(U8 *MagicData)
+1595          {
+1596   1      
+1597   1      
+1598   1      TxdData.CMD = CMD_IsOnLine;
+1599   1      TxdData.DataLen = 0x00;
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 27  
+
+1600   1      TxdData.CheckByte = TxdHeader0  + CMD_IsOnLine +0x00;
+1601   1      if(SendCMDPackage(100, ACK_StateCode,10)){
+1602   2         *MagicData = RxdData.DataBuf[0];
+1603   2         return true;
+1604   2      }else{
+1605   2         return false;
+1606   2      }
+1607   1      
+1608   1      }
+1609          //ÉèÖÃMagicData
+1610          /*
+1611          *****************************************************************************
+1612          * K1_SetMagicData - ÉèÖÃÒ»¸öÎ»ÓÚK1µÄ±äÁ¿
+1613          * DESCRIPTION: -
+1614          * ¸Ã±äÁ¿ÓÃÓÚÊ¶±ðK1ÊÇ·ñÒÑ¾­²âÊÔ ²¢Í¨ÖªK1ÊÇ·ñÒªËø¶¨¼üÅÌ
+1615          * Input:
+1616          * Output:
+1617          * Returns:
+1618          *
+1619          *****************************************************************************
+1620          */
+1621          Bool K1_SetMagicData(U8 MagicData)
+1622          {
+1623   1      
+1624   1      TxdData.CMD = CMD_SetMagicData;
+1625   1      TxdData.DataLen = 0x01;
+1626   1      TxdData.DataBuf[0] = MagicData;
+1627   1      TxdData.CheckByte = TxdHeader0  + CMD_SetMagicData +0x00;
+1628   1      if(SendCMDPackage(100, ACK_StateCode,30)){
+1629   2         //RxdData.DataBuf[0];
+1630   2          return true;
+1631   2      }else{
+1632   2          return false;
+1633   2      }
+1634   1      
+1635   1      }
+1636          
+1637          
+1638          
+1639          #if 0
+              
+              //¼ì²éÊÇ·ñÔÚÏß   Í¨¹ý¼ì²âDCD DSR ÊµÏÖ
+              U8 CheckIsOnLine(void)
+              {
+                  U8 InData;
+                  U16 Timeout;
+                  U8 Retry;
+                  U8 PulseCount;
+                  Bool PassFlag;
+                  PassFlag = false;
+                  PulseCount = 10;
+                  Retry = 3;
+                  do{
+                      Timeout = 2000;
+                      do{
+                          Delay_50us(1);
+                          InData = XBYTE[IN3_Port_Addr];
+                          if(((InData&BIT_DSR)==0)&&(InData&BIT_DCD)){//DCD = 1 DSR = 0
+                              break;
+                          }
+                          Timeout--;
+                      }while(Timeout);
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 28  
+
+                      if(Timeout){
+                          Timeout = 6000;
+                          do{
+                              Delay_50us(1);
+                              InData = XBYTE[IN3_Port_Addr];
+                              if((InData&BIT_DSR)&&((InData&BIT_DCD)==0)){//DCD = 0 DSR = 1
+                                  if(PulseCount == 0){
+                                      Retry = 1;
+                                      PassFlag = true;
+                                      break;
+                                  }else{
+                                      Retry = 3;
+                                      PulseCount--;
+                                  }
+              
+              
+                              }
+                              Timeout--;
+                          }while(Timeout);
+                       }else{
+              
+                      }
+                      Retry--;
+                      if(Retry == 0){
+                          break;
+                      }
+                  }while(Retry);
+                  if(PassFlag){
+                      GUI_SetEnFont(En_5x8);
+                      GUI_DispStringAt("K1 is Online! ",StatusDispPosX+60,StatusDispPosY);
+                      GUI_SetEnFont(En_8x16);
+                      return true;
+                  }else{
+                      GUI_SetEnFont(En_5x8);
+                      GUI_DispStringAt("Waiting For K1",StatusDispPosX+60,StatusDispPosY);
+                      GUI_SetEnFont(En_8x16);
+                      return false;
+                  }
+              }
+              #endif
+1702          /*
+1703          ÊÖÂÖÄ£Äâ
+1704          Count Ä£Äâ´ÎÊý
+1705          DIR ·½Ïò
+1706          TcÂö³å¼ä¸ôÊ±¼ä  tc*50us
+1707          */
+1708          void HAHB_Sim(U8 Tc,Bool DIR,U16 Count)
+1709          {
+1710   1      /*
+1711   1      HA  ________|-----------|__________|-----------|__________|-----------|__________
+1712   1      
+1713   1      HB _______________|-----------|__________|-----------|__________|-----------|__________
+1714   1            |     |     |     |     |
+1715   1              Tc    Tc    Tc    Tc
+1716   1      */
+1717   1          HA = 0;
+1718   1          HB = 0;
+1719   1      
+1720   1          for( ;Count > 0; Count --){
+1721   2              Delay_50us(Tc);
+1722   2              if(DIR){
+1723   3                  HA = 1;
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 29  
+
+1724   3                  HB = 0;
+1725   3              }else{
+1726   3                  HA = 0;
+1727   3                  HB = 1;
+1728   3              }
+1729   2              Delay_50us(Tc);
+1730   2              HA = 1;
+1731   2              HB = 1;
+1732   2              Delay_50us(Tc);
+1733   2              if(DIR){
+1734   3                  HA = 0;
+1735   3                  HB = 1;
+1736   3              }else{
+1737   3                  HA = 1;
+1738   3                  HB = 0;
+1739   3              }
+1740   2              Delay_50us(Tc);
+1741   2              HA = 0;
+1742   2              HB = 0;
+1743   2          }
+1744   1      }
+1745          #if 0
+              void PASPBS_Sim(U8 Tc,Bool DIR,U16 Count)
+              {
+              /*
+              PAS  ________|-----------|__________|-----------|__________|-----------|__________
+              
+              PBS  _______________|-----------|__________|-----------|__________|-----------|__________
+                    |     |     |     |     |
+                      Tc    Tc    Tc    Tc
+              */
+                  PAS = 0;
+                  PBS = 0;
+                  for( ;Count > 0; Count --){
+                      Delay_50us(Tc);
+                      if(DIR){
+                          PAS = 1;
+                          PBS = 0;
+                      }else{
+                          PAS = 0;
+                          PBS = 1;
+                      }
+                      Delay_50us(Tc);
+                      PAS = 1;
+                      PBS = 1;
+                      Delay_50us(Tc);
+                      if(DIR){
+                          PAS = 0;
+                          PBS = 1;
+                      }else{
+                          PAS = 1;
+                          PBS = 0;
+                      }
+                      Delay_50us(Tc);
+                      PAS = 0;
+                      PBS = 0;
+                  }
+              }
+              #endif
+1783          void PCS_Sim(U8 Tc,U16 Count)
+1784          {
+1785   1      
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 30  
+
+1786   1      /*
+1787   1      PCS  ________|-----------|__________|-----------|__________|-----------|__________
+1788   1      
+1789   1            |     |     |     |     |
+1790   1              Tc    Tc    Tc    Tc
+1791   1      */
+1792   1      
+1793   1          for( ;Count > 0; Count --){
+1794   2              PCS = 0;
+1795   2              Delay_50us(Tc);
+1796   2              PCS = 1;
+1797   2              Delay_50us(Tc);
+1798   2          }
+1799   1      }
+1800          
+1801          /*
+1802          *****************************************************************************
+1803          * K1_HAHBTest - ÊÖÂÖÐÅºÅHA HB²âÊÔ
+1804          * DESCRIPTION: -
+1805          * Õï¶ÏÆ÷Ä£ÄâÖ¸¶¨¸öÊýÁ¿µÄÊÖÂÖÂö³å,È»ºóÒªÇóK1·µ»Ø¶ÁÊý ¸Ã¶ÁÊýÓ¦µ±¸úÔ¤ÉèÖµÒ»ÖÂ
+1806          * Input:
+1807          * Output:
+1808          * Returns:
+1809          *
+1810          *****************************************************************************
+1811          */
+1812          U8 K1_HAHBTest(struct _SysErrDiff *SysErrMap)
+1813          {
+1814   1          U16 U16Count;
+1815   1      
+1816   1          U8 WriteData;
+1817   1          U8 ReadData;
+1818   1          U8 Diff;
+1819   1          U8 ErrCode;
+1820   1          ErrCode = Err_Pass;
+1821   1      
+1822   1          GUI_DispStringAtBar("-¼ì²âÊÖÂÖ-",TitleDispPosX,TitleDispPosY,LCD_XSIZE-1,GUI_TA_HCENTER);
+1823   1      
+1824   1          TxdData.CMD = CMD_ReadHAHBData;
+1825   1          TxdData.DataLen = 0x00;
+1826   1          TxdData.CheckByte = TxdHeader0  + CMD_ReadHAHBData +0x00;
+1827   1      
+1828   1      
+1829   1      
+1830   1          for(U16Count = 1; U16Count < 0xFF; U16Count += 0x05){
+1831   2              WriteData = U16Count&0x7F;
+1832   2              HAHB_Sim(2,0,WriteData);
+1833   2              ProgBar(TitleDispPosY+2, 32, 128+32,U16Count/2,0xFF);
+1834   2              GUI_DispHexAt(WriteData,StatusDispPosX,StatusDispPosY+2,2);
+1835   2              if(SendCMDPackage(100,ACK_StateCode,10)){
+1836   3                  ReadData = RxdData.DataBuf[0];
+1837   3                  ReadData = ReadData&0x7F;
+1838   3                  Diff = WriteData-ReadData;
+1839   3                  if(Diff != 1){//¶Á³öÖµ±ÈÉèÖÃÖµÉÙ1
+1840   4                      GUI_DispStringAt("HAHB Err!",StatusDispPosX,StatusDispPosY);
+1841   4                      SysErrMap->MiscErrDiffByteL |= MiscByteL_BIT_HAHB;
+1842   4                      ErrCode = Err_unPass;
+1843   4                  }else{
+1844   4                      GUI_DispStringAt("HAHB OK! ",StatusDispPosX,StatusDispPosY);
+1845   4                  }
+1846   3                  GUI_DispHexAt(ReadData,StatusDispPosX+48,StatusDispPosY+2,2);
+1847   3                  //GUI_Delay(500);
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 31  
+
+1848   3              }else{
+1849   3                  GUI_DispStringAt("Timeout!",StatusDispPosX,StatusDispPosY);
+1850   3                  ErrCode = Err_Timeout;
+1851   3              }
+1852   2          }
+1853   1      
+1854   1          for(U16Count = 1; U16Count < 0xFF; U16Count += 0x05){
+1855   2              WriteData = U16Count&0x7F;
+1856   2              HAHB_Sim(1,1,WriteData);
+1857   2              ProgBar(TitleDispPosY+2, 32, 128+32,U16Count/2+0x80,0xFF);
+1858   2              GUI_DispHexAt(WriteData,StatusDispPosX,StatusDispPosY+2,2);
+1859   2              if(SendCMDPackage(100,ACK_StateCode,10)){
+1860   3                  ReadData = ~RxdData.DataBuf[0];
+1861   3                  ReadData = ReadData&0x7F;
+1862   3                  Diff = WriteData - ReadData;
+1863   3                  if(Diff != 0){
+1864   4                      GUI_DispStringAt("HAHB Err!",StatusDispPosX,StatusDispPosY);
+1865   4                      SysErrMap->MiscErrDiffByteL |= MiscByteL_BIT_HAHB;
+1866   4                      ErrCode = Err_unPass;
+1867   4                  }else{
+1868   4                      GUI_DispStringAt("HAHB OK! ",StatusDispPosX,StatusDispPosY);
+1869   4                  }
+1870   3                  GUI_DispHexAt(ReadData,StatusDispPosX+48,StatusDispPosY+2,2);
+1871   3                  //GUI_Delay(500);
+1872   3              }else{
+1873   3                  GUI_DispStringAt("Timeout!",StatusDispPosX,StatusDispPosY);
+1874   3                  ErrCode = Err_Timeout;
+1875   3              }
+1876   2          }
+1877   1          return ErrCode;
+1878   1      }
+1879          //----------------------------------------
+1880          //Set T0 as Time Counter
+1881          void SetT0CountTime(void)
+1882          {
+1883   1          TMOD &= 0xF0;
+1884   1          TMOD |= 0x01;
+1885   1      }
+1886          
+1887          U8 G_TCount = 1;
+1888          U16 G_TimerInitData = 0xF000;
+1889          data U8 G_Time0Count;
+1890          
+1891          Bool PASPBS_Sim_En;//ÔÊÐí¶¨Ê±ÖÐ¶ÏÖÐÊä³öPAS PBS
+1892          Bool PASPBSDir;
+1893          #define PASPBS_00  1
+1894          #define PASPBS_01  2
+1895          #define PASPBS_11  3
+1896          #define PASPBS_10  4
+1897          
+1898          U8 PASPBS_Sim_StateCode;
+1899          //T0 ISR
+1900          void T0_ISR(void) interrupt 1
+1901          {
+1902   1      //        EA = 0;
+1903   1              G_Time0Count ++; //T0 Time Counter
+1904   1      //------------------------------------
+1905   1              if(G_Time0Count == G_TCount){
+1906   2                  G_Time0Count = 0;
+1907   2                  if(PASPBS_Sim_En){
+1908   3                      switch(PASPBS_Sim_StateCode){
+1909   4                          case PASPBS_00:
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 32  
+
+1910   4                              PAS = 0;
+1911   4                              PBS = 0;
+1912   4                              if(PASPBSDir){
+1913   5                                  PASPBS_Sim_StateCode = PASPBS_10;
+1914   5                              }else{
+1915   5                                  PASPBS_Sim_StateCode = PASPBS_01;
+1916   5                              }
+1917   4                              break;
+1918   4                          case PASPBS_01:
+1919   4                              PAS = 0;
+1920   4                              PBS = 1;
+1921   4                              if(PASPBSDir){
+1922   5                                  PASPBS_Sim_StateCode = PASPBS_00;
+1923   5                              }else{
+1924   5                                  PASPBS_Sim_StateCode = PASPBS_11;
+1925   5                              }
+1926   4                              break;
+1927   4                          case PASPBS_10:
+1928   4                              PAS = 1;
+1929   4                              PBS = 0;
+1930   4                              if(PASPBSDir){
+1931   5                                  PASPBS_Sim_StateCode = PASPBS_11;
+1932   5                              }else{
+1933   5                                  PASPBS_Sim_StateCode = PASPBS_00;
+1934   5                              }
+1935   4                              break;
+1936   4                          case PASPBS_11:
+1937   4                              PAS = 1;
+1938   4                              PBS = 1;
+1939   4                              if(PASPBSDir){
+1940   5                                  PASPBS_Sim_StateCode = PASPBS_01;
+1941   5                              }else{
+1942   5                                  PASPBS_Sim_StateCode = PASPBS_10;
+1943   5                              }
+1944   4                              break;
+1945   4                          default:
+1946   4                              break;
+1947   4                      }
+1948   3                  }else{
+1949   3                      PAS = 0;
+1950   3                      PBS = 0;
+1951   3                  }
+1952   2              }
+1953   1              //T0¼ÆÊ±
+1954   1              //ÖØÐÂ×°ÔØ¶¨Ê±³õÖµ
+1955   1              TH0 = G_TimerInitData/256;
+1956   1              TL0 = G_TimerInitData%256;
+1957   1              ET0 = 1;
+1958   1              TR0 = 1;
+1959   1      //        EA = 1;
+1960   1              return;
+1961   1      }
+1962          /*
+1963          *****************************************************************************
+1964          * InitTimer0 - Æô¶¯¶¨Ê±Æ÷0
+1965          * DESCRIPTION: -
+1966          * ¸Ã¶¨Ê±Æ÷ÖÐ¶ÏÖÐ½«Ä£Äâ³öPAS PBS²¨ÐÎ
+1967          * Input:
+1968          * Output:
+1969          * Returns:
+1970          *
+1971          *****************************************************************************
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 33  
+
+1972          */
+1973          void InitTimer0(void)
+1974          {
+1975   1          G_Time0Count = 0;
+1976   1          SetT0CountTime();
+1977   1          TH0 = G_TimerInitData/256;
+1978   1          TL0 = G_TimerInitData%256;
+1979   1          ET0 = 1;//T1¶¨Ê±,ÐèÒªÖÐ¶Ï
+1980   1      }
+1981          
+1982          void Start_PASPBS_Sim(U8 Dir,U8 Tcount,U16 TimerIintData)
+1983          {
+1984   1          PASPBS_Sim_En = true;
+1985   1          PASPBSDir = Dir;
+1986   1          PASPBS_Sim_StateCode = PASPBS_00;
+1987   1      
+1988   1          G_TCount = Tcount;
+1989   1          G_TimerInitData = TimerIintData;
+1990   1      
+1991   1          InitTimer0();
+1992   1          StartT0();
+1993   1      }
+1994          void Stop_PASPBS_Sim(void)
+1995          {
+1996   1          StopT0();
+1997   1          PASPBS_Sim_En = false;
+1998   1          PAS = 0;
+1999   1          PBS = 0;
+2000   1      
+2001   1      }
+2002          
+2003          
+2004          /*
+2005          *****************************************************************************
+2006          * K1_PASPBS_Test - Ö÷Öá±àÂëÆ÷PAS PBS ÐÅºÅ²âÊÔ
+2007          * DESCRIPTION: -
+2008          * Õï¶ÏÆ÷ÔÚ¶¨Ê±Æ÷ÖÐÄ£ÄâPAS PBS È»ºóÕï¶ÏÆ÷ÒªÇóK1·µ»Ø¶Á³öÖµÅÐ¶ÏÒ»ÖÂÐÔ
+2009          * Input:
+2010          * Output:
+2011          * Returns:
+2012          *
+2013          *****************************************************************************
+2014          */
+2015          U8 K1_PASPBS_Test(struct _SysErrDiff *SysErrMap)
+2016          {
+2017   1          U16 PASData[5];
+2018   1          U8 U8Count;
+2019   1          U16 Diff;
+2020   1      
+2021   1          GUI_DispStringAtBar("-¼ì²â±àÂëÆ÷-",TitleDispPosX,TitleDispPosY,LCD_XSIZE-1,GUI_TA_HCENTER);
+2022   1      
+2023   1          TxdData.CMD = CMD_ReadPASData;
+2024   1          TxdData.DataLen = 0x00;
+2025   1          TxdData.CheckByte = TxdHeader0  + CMD_ReadPASData +0x00;
+2026   1      
+2027   1          Stop_PASPBS_Sim();
+2028   1          //¶ªÆúÒ»´Î¶Áµ½µÄÖµ
+2029   1          if(SendCMDPackage(100, CMD_ReadPASData,30)){
+2030   2      
+2031   2          }else{
+2032   2              return Err_Timeout;
+2033   2          }
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 34  
+
+2034   1      
+2035   1          Start_PASPBS_Sim(0,1,0xFF00);
+2036   1          Delayms(100);
+2037   1      
+2038   1          for(U8Count = 0; U8Count < 5; ){
+2039   2              if(SendCMDPackage(100, CMD_ReadPASData,30)){
+2040   3                  PASData[U8Count] = RxdData.DataBuf[1];//HighByte
+2041   3                  PASData[U8Count] *= 256;
+2042   3                  PASData[U8Count] += RxdData.DataBuf[0];//LowByte
+2043   3                  U8Count++;
+2044   3              }else{
+2045   3                  return Err_Timeout;
+2046   3              }
+2047   2          }
+2048   1          Stop_PASPBS_Sim();
+2049   1          //¶ªÆúÒ»´Î¶Áµ½µÄÖµ
+2050   1          if(SendCMDPackage(100, CMD_ReadPASData,30)){
+2051   2      
+2052   2          }else{
+2053   2              return Err_Timeout;
+2054   2          }
+2055   1          //ÅÐ±ðÊÇ·ñÎª0
+2056   1          if(SendCMDPackage(100, CMD_ReadPASData,30)){
+2057   2              if((RxdData.DataBuf[1] != 0xFF)||(RxdData.DataBuf[0] != 0x00)){//Í£Ö¹Êä³öºó Ó¦µ±¶Áµ½µÄÖµÊÇ0xFF00
+2058   3                  GUI_DispStringAt("PAS @1!",StatusDispPosX,StatusDispPosY);
+2059   3                  GUI_Delay(4000);
+2060   3                  SysErrMap->MiscErrDiffByteL |= MiscByteL_BIT_PASPBS;
+2061   3                  return Err_unPass;
+2062   3              }
+2063   2          }else{
+2064   2              return Err_Timeout;
+2065   2          }
+2066   1          Diff = 0;
+2067   1          for(U8Count = 0; U8Count < 5; U8Count++){
+2068   2              GUI_DispHexAt(PASData[U8Count],StatusDispPosX+U8Count*3*Char_XSIZE,StatusDispPosY+2,2);
+2069   2              if(PASData[U8Count] > 0xFF22){
+2070   3                  Diff += PASData[U8Count] - 0xFF22;
+2071   3              }else{
+2072   3                  Diff += 0xFF22 - PASData[U8Count];
+2073   3              }
+2074   2          }
+2075   1      
+2076   1          Diff /= 5;
+2077   1          GUI_DispHexAt(Diff,StatusDispPosX+8*3*Char_XSIZE,StatusDispPosY+2,4);
+2078   1          if(Diff > 2){
+2079   2              GUI_DispStringAt("PAS Err!",StatusDispPosX,StatusDispPosY);
+2080   2              GUI_Delay(2000);
+2081   2              SysErrMap->MiscErrDiffByteL |= MiscByteL_BIT_PASPBS;
+2082   2              return Err_unPass;
+2083   2          }else{
+2084   2              GUI_DispStringAt("PAS OK ",StatusDispPosX,StatusDispPosY);
+2085   2              GUI_Delay(1000);
+2086   2              return Err_Pass;
+2087   2          }
+2088   1      }
+2089          
+2090          /*
+2091          *****************************************************************************
+2092          * K1_DispStr - Í¨ÖªK1ÏÔÊ¾Ö¸¶¨´úÂë¶ÔÓ¦µÄ×Ö·û´®
+2093          * DESCRIPTION: -
+2094          *
+2095          * Input:
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 35  
+
+2096          * Output:
+2097          * Returns:
+2098          *
+2099          *****************************************************************************
+2100          */
+2101          Bool K1_DispStr(U8 StrCode)
+2102          {
+2103   1      
+2104   1          TxdData.CMD = CMD_DispStr;
+2105   1          TxdData.DataLen = 0x01;
+2106   1          TxdData.DataBuf[0] = StrCode;
+2107   1          TxdData.CheckByte = TxdHeader0  + CMD_DispStr +0x00;
+2108   1          if(SendCMDPackage(100, ACK_StateCode,30)){
+2109   2             //RxdData.DataBuf[0];
+2110   2              return true;
+2111   2          }else{
+2112   2              return false;
+2113   2          }
+2114   1      }
+2115          
+2116          #if 1
+2117          //½»²æ²âÊÔ
+2118          U8 CrossTsst(struct _SysErrDiff *SysErrMap)
+2119          {
+2120   1          Bool FailFlag;
+2121   1          U8 PortDataH;
+2122   1          U8 PortDataM;
+2123   1          U8 PortDataL;
+2124   1          U8 InData;
+2125   1          U8 VertorByteH;
+2126   1          U8 VertorByteM;
+2127   1          U8 VertorByteL;
+2128   1          U32 Vector;
+2129   1      
+2130   1          Vector = 0x3FFFF;
+2131   1          SetPortData(Vector, true);//Ç¿ÖÆÊä³ö0
+2132   1          //
+2133   1          TxdData.CMD = CMD_ReturnAll;
+2134   1          TxdData.DataLen = 0x00;
+2135   1          TxdData.CheckByte = TxdHeader0  + CMD_ReturnAll+0x00;
+2136   1      
+2137   1          VertorByteH = (U8)(Vector>>16);
+2138   1          VertorByteM = (U8)(Vector>>8);
+2139   1          VertorByteL = (U8)(Vector);
+2140   1      
+2141   1      
+2142   1      
+2143   1          if(SendCMDPackage(10, ACK_ReturnAll,4)){
+2144   2              PortDataL = RxdData.DataBuf[0];
+2145   2              PortDataM = RxdData.DataBuf[1];
+2146   2              PortDataH = RxdData.DataBuf[2];
+2147   2              GUI_DispHexAt(PortDataH,StatusDispPosX+0*Char_XSIZE,StatusDispPosY+2,2);
+2148   2              GUI_DispHexAt(PortDataM,StatusDispPosX+2*Char_XSIZE,StatusDispPosY+2,2);
+2149   2              GUI_DispHexAt(PortDataL,StatusDispPosX+4*Char_XSIZE,StatusDispPosY+2,2);
+2150   2      
+2151   2              if(VertorByteH != PortDataH){
+2152   3                  SysErrMap->InputErrDiffByteH |= (VertorByteH ^ PortDataH);            //±£´æ²»Í¬Bit
+2153   3                  GUI_DispStringAt("Err @HByte",StatusDispPosX,StatusDispPosY);
+2154   3                  GUI_Delay(1000);
+2155   3              }
+2156   2              if(VertorByteM != PortDataM){
+2157   3                  SysErrMap->InputErrDiffByteM |= (VertorByteM ^ PortDataM);
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 36  
+
+2158   3                  GUI_DispStringAt("Err @MByte",StatusDispPosX,StatusDispPosY);
+2159   3                  GUI_Delay(1000);
+2160   3              }
+2161   2              if(VertorByteL != PortDataL){
+2162   3                  SysErrMap->InputErrDiffByteL |= (VertorByteL ^ PortDataL);
+2163   3                  GUI_DispStringAt("Err @LByte",StatusDispPosX,StatusDispPosY);
+2164   3                  GUI_Delay(1000);
+2165   3              }
+2166   2              //----------------------------------------------------
+2167   2              TxdData.CMD = CMD_SetOutput;
+2168   2              TxdData.DataLen = 0x04;
+2169   2              TxdData.DataBuf[0] = 0xFF;
+2170   2              TxdData.DataBuf[1] = 0xFF;
+2171   2              TxdData.DataBuf[2] = 0x55;
+2172   2              TxdData.DataBuf[3] = 0x3A;//¼ÌµçÆ÷ºÏÉÏ X Z CP DIR ¾ùÓÐÊä³ö
+2173   2              TxdData.CheckByte = TxdHeader0  + CMD_SetOutput +0x00;
+2174   2              FailFlag = false;
+2175   2              if(SendCMDPackage(100,CMD_SetOutput,10)){
+2176   3                  InData = ~XBYTE[K1OutputPortA];
+2177   3                  InData = InPutDataBitSwap[InData];//½»»»Î»
+2178   3                  if(InData != 0xFF){
+2179   4                      SysErrMap->OutputErrDiffByteH |= InData ^ 0xFF;
+2180   4                      GUI_DispStringAt("ErrBit@A  ",StatusDispPosX,StatusDispPosY);
+2181   4                      GUI_DispHexAt(InData,StatusDispPosX+0*Char_XSIZE,StatusDispPosY+2,2);
+2182   4                      FailFlag = true;
+2183   4                  }
+2184   3                  InData = ~XBYTE[K1OutputPortB];
+2185   3                  if(InData != 0xFF){
+2186   4                      SysErrMap->OutputErrDiffByteL |= InData ^ 0xFF;
+2187   4                      GUI_DispStringAt("ErrBit@B  ",StatusDispPosX,StatusDispPosY);
+2188   4                      GUI_DispHexAt(InData,StatusDispPosX+3*Char_XSIZE,StatusDispPosY+2,2);
+2189   4                      FailFlag = true;
+2190   4                  }
+2191   3      //------------------------
+2192   3      
+2193   3                  //
+2194   3                  TxdData.CMD = CMD_ReturnAll;
+2195   3                  TxdData.DataLen = 0x00;
+2196   3                  TxdData.CheckByte = TxdHeader0  + CMD_ReturnAll+0x00;
+2197   3      
+2198   3                  if(SendCMDPackage(1, ACK_ReturnAll,5)){
+2199   4                      PortDataL = RxdData.DataBuf[0];
+2200   4                      PortDataM = RxdData.DataBuf[1];
+2201   4                      PortDataH = RxdData.DataBuf[2];
+2202   4                      GUI_DispHexAt(PortDataH,StatusDispPosX+0*Char_XSIZE,StatusDispPosY+2,2);
+2203   4                      GUI_DispHexAt(PortDataM,StatusDispPosX+2*Char_XSIZE,StatusDispPosY+2,2);
+2204   4                      GUI_DispHexAt(PortDataL,StatusDispPosX+4*Char_XSIZE,StatusDispPosY+2,2);
+2205   4      
+2206   4                      if(VertorByteH != PortDataH){
+2207   5                          SysErrMap->InputErrDiffByteH |= (VertorByteH ^ PortDataH);
+2208   5                          GUI_DispStringAt("Err @HByte",StatusDispPosX,StatusDispPosY);
+2209   5                          GUI_Delay(1000);
+2210   5                      }
+2211   4                      if(VertorByteM != PortDataM){
+2212   5                          SysErrMap->InputErrDiffByteM |= (VertorByteM ^ PortDataM);
+2213   5                          GUI_DispStringAt("Err @MByte",StatusDispPosX,StatusDispPosY);
+2214   5                          GUI_Delay(1000);
+2215   5                      }
+2216   4                      if(VertorByteL != PortDataL){
+2217   5                          SysErrMap->InputErrDiffByteL |= (VertorByteL ^ PortDataL);
+2218   5                          GUI_DispStringAt("Err @LByte",StatusDispPosX,StatusDispPosY);
+2219   5                          GUI_Delay(1000);
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 37  
+
+2220   5                      }
+2221   4                  }
+2222   3      
+2223   3      //------------------------
+2224   3              }
+2225   2      
+2226   2              //----------------------------------------------------
+2227   2          }else{
+2228   2              GUI_DispStringAt("Timeout",StatusDispPosX,StatusDispPosY);
+2229   2              GUI_Delay(1000);
+2230   2          }
+2231   1              return 0;
+2232   1      }
+2233          #endif
+2234          
+2235          
+2236          
+2237          /*
+2238          *****************************************************************************
+2239          * K1_AutoCheckAll -  K1×Ô¶¯Õï¶ÏÁ÷³ÌÕï¶Ï
+2240          * DESCRIPTION: -
+2241          *
+2242          * @Para SysErrMap:³ö´í¼ÇÂ¼½á¹¹Ìå
+2243          * Return :
+2244          *
+2245          *****************************************************************************
+2246          */
+2247          void K1_AutoCheckAll(struct _SysErrDiff *SysErrMap)
+2248          {
+2249   1          K1_SetMagicData(MagicData_KeyPadLock);//Ëø¶¨¼üÅÌ
+2250   1          GUI_Delay(100);
+2251   1          K1_DispStr(K1DispCode_Doing);//K1 Disp we are testing
+2252   1          GUI_Clear();
+2253   1          K1_Clear_SysErrMap(SysErrMap);//Ã¿´Î×Ô¶¯²âÊÔÇ°Çå¿Õ³ö´í±í¸ñ
+2254   1          GUI_Clear();
+2255   1          K1_IOInputVertorTest(SysErrMap);
+2256   1          GUI_Clear();
+2257   1          K1_SVCTest(SysErrMap);
+2258   1          GUI_Clear();
+2259   1          K1_AxisTest(SysErrMap);
+2260   1          GUI_Clear();
+2261   1          K1_CheckRelay(SysErrMap);
+2262   1          GUI_Clear();
+2263   1          K1_IOOutputVertorTest(SysErrMap);
+2264   1          GUI_Clear();
+2265   1          K1_HAHBTest(SysErrMap);
+2266   1          GUI_Clear();
+2267   1          K1_PASPBS_Test(SysErrMap);
+2268   1          GUI_Clear();
+2269   1          K1_CheckRs232Pin_DCD(SysErrMap);
+2270   1          GUI_Clear();
+2271   1          K1_CheckRs232Pin_DSR(SysErrMap);
+2272   1      //    GUI_Delay(400);//DSR DCD ²âÊÔÊ± DSR DCDÊä³öÔ¼1000msµÄ·½²¨,·½²¨ÖÜÆÚÔ¼4ms  250´Î
+2273   1      //    CrossTsst(SysErrMap);
+2274   1          GUI_Clear();
+2275   1      
+2276   1          //²âÊÔ½áÊø,Í³¼Æ³ö´í¸öÊý
+2277   1      
+2278   1          SysErrMap->ErrCountAll =  K1_CountErrBitNum(*SysErrMap);
+2279   1          if(SysErrMap->ErrCountAll){
+2280   2              K1_DispStr(K1DispCode_unPass);//K1 Disp Err
+2281   2              GUI_Delay(100);
+C51 COMPILER V7.20   K1_DIAG                                                               08/04/2007 17:20:18 PAGE 38  
+
+2282   2              K1_SetMagicData(MagicCode);
+2283   2              GUI_DrawIcon(Warning,150,2);
+2284   2              TipDisp( 32, 1, 6*Chinese_XSIZE+35, 5);
+2285   2              GUI_DispStringAt("·¢ÏÖ  ´¦³ö´í",33,2);
+2286   2              GUI_SetEnFont(En_8x16);
+2287   2              GUI_DispDecAt(SysErrMap->ErrCountAll,+32+2*Chinese_XSIZE,2,2);
+2288   2              GUI_Delay(2500);
+2289   2              GUI_Clear();
+2290   2      //        K1_SysInputErrDisp(*SysErrMap);
+2291   2          }else{
+2292   2              K1_DispStr(K1DispCode_Pass);//K1 Disp pass
+2293   2              GUI_Delay(100);
+2294   2              K1_SetMagicData(MagicCode);
+2295   2              TipDisp( 32, 1, 6*Chinese_XSIZE+35, 5);
+2296   2              GUI_DispStringAt("Í¨¹ý²âÊÔ!",40,2);
+2297   2              GUI_Delay(2500);
+2298   2      
+2299   2          }
+2300   1          K1_SetMagicData(MagicCode);
+2301   1          GUI_Clear();
+2302   1      }
+2303          
+2304          
+2305          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   8347    ----
+   CONSTANT SIZE    =   1672    ----
+   XDATA SIZE       =      4     190
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      1    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      2      13
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

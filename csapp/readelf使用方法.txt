@@ -1,0 +1,28 @@
+  -a –all		等同于同时使用：-h -l -S -s -r -d -V -A -I
+  -h --file-header	显示ELF文件头
+  -l --program-headers	显示程序头
+  -S --section-headers	显示节头
+  -t --section-details	显示节详细信息
+  -s –syms		显示符号表（symbol table）
+  -r –relocs		显示重定位信息
+  -d –dynamic	显示动态节（dynamic section）
+  -x --hex-dump=<number|name>
+	以字节形式显示输出<number|name>指定节的内容
+  -p --string-dump=<number|name>
+	以字符串形式显示输出<number|name>指定节的内容
+  -R --relocated-dump=<number|name>
+以重定位后的字节形式显示输出<number|name>指定节内容
+
+
+4.运行LinkAddr程序，看输出结果
+排序一下输出的各个符号。
+查看内存：argv  与 env 典型的char** 或char*[]
+5.GDB/EDB打开linkAddr
+调试程序，查看从最开始到main函数及退出前的所有运行函数。按顺序列出。
+6.查看变量与函数的地址填充
+确定调用useless、showpointer、main函数地址何时确定的
+函数__printf_chk、puts的地址何时确定的，谁来填写的？
+函数malloc、free的地址何时确定的，谁来填写的
+函数exit、printf的地址何时确定的，谁来填写的
+符号__environ、global、argc、argv的地址与值怎么确定的
+请列出各符号的地址、内容

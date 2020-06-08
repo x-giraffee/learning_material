@@ -1,0 +1,278 @@
+C51 COMPILER V7.20   SERIAL                                                                08/04/2007 17:20:09 PAGE 1   
+
+
+C51 COMPILER V7.20, COMPILATION OF MODULE SERIAL
+OBJECT MODULE PLACED IN .\Obj\serial.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE Src\serial.c LARGE BROWSE DEBUG OBJECTEXTEND PRINT(.\Lst\serial.lst) OBJECT
+                    -(.\Obj\serial.obj)
+
+line level    source
+
+   1          #include "CPU.h"
+   2          #include "Serial.H"
+   3          /*
+   4          24MHZ  T2
+   5                50       50     C569     0.00
+   6                75       75     D8F1     0.00
+   7               110      110     E55F     0.00
+   8               150      150     EC79     0.00
+   9               200      200     F15B     0.00
+  10               300      300     F63D     0.00
+  11               600      600     FB1F     0.00
+  12              1200     1200     FD8F     0.00
+  13              2400     2403     FEC8    +0.12
+  14              4800     4807     FF64    +0.14
+  15              7200     7211     FF98    +0.15
+  16              9600     9615     FFB2    +0.15
+  17             14400    14423     FFCC    +0.15
+  18             19200    19230     FFD9    +0.15
+  19             28800    28846     FFE6    +0.15
+  20             38400    37500     FFEC    -2.34
+  21             57600    57692     FFF3    +0.15
+  22             76800    75000     FFF6    -2.34
+  23            128000   125000     FFFA    -2.34
+  24            153600   150000     FFFB    -2.34
+  25            256000   250000     FFFD    -2.34
+  26          12MHZ  T2
+  27                50       50     E2B5     0.00
+  28                75       75     EC79     0.00
+  29               110      110     F2B0     0.00
+  30               150      150     F63D     0.00
+  31               200      200     F8AE     0.00
+  32               300      300     FB1F     0.00
+  33               600      600     FD90     0.00
+  34              1200     1201     FEC8    +0.08
+  35              2400     2403     FF64    +0.12
+  36              4800     4807     FFB2    +0.14
+  37              7200     7211     FFCC    +0.15
+  38              9600     9615     FFD9    +0.15
+  39             14400    14423     FFE6    +0.15
+  40             19200    18750     FFEC    -2.34
+  41             28800    28846     FFF3    +0.15
+  42             38400    37500     FFF6    -2.34
+  43             76800    75000     FFFB    -2.34
+  44            128000   125000     FFFD    -2.34
+  45          */
+  46          //48MHZ 4800
+  47          //#define T2InitData  0xFEC8
+  48          
+  49          //48MHZ 4800
+  50          #define T2InitData  0xFF64
+  51          
+  52          data struct RxdData RxdData;
+  53          data U8 RxdState;
+  54          data U8 RxdLenCount;
+C51 COMPILER V7.20   SERIAL                                                                08/04/2007 17:20:09 PAGE 2   
+
+  55          data U8 Sum;
+  56          
+  57          data struct TxdData TxdData;
+  58          data U8 TxdState;
+  59          data U8 TxdLenCount;
+  60          
+  61          //extern U8 LocalChannelNum;
+  62          
+  63          //24MHZ  245--->1Ms
+  64          void Delayms(U16 Ms);
+  65          
+  66          
+  67          /*
+  68          *****************************************************************************
+  69          * serial - 串口中断ISR
+  70          * DESCRIPTION: -
+  71          *
+  72          * @Para void:
+  73          * Return :
+  74          *
+  75          *****************************************************************************
+  76          */
+  77          void serial(void)  interrupt 4
+  78          {
+  79   1      //    U8 *t;
+  80   1          if(RI){
+  81   2              RI=0;
+  82   2              switch(RxdState){
+  83   3                  case IsACKHeader0:
+  84   3                      if(SBUF == RxdHeader0){
+  85   4                          RxdData.State = Rxd_Empty;//置为空
+  86   4                          RxdState = IsACK;
+  87   4                      }else{
+  88   4                          RxdState = IsACKHeader0;
+  89   4                      }
+  90   3                      break;
+  91   3                  case IsACK:
+  92   3                      RxdData.ACK = SBUF;
+  93   3                      Sum = RxdHeader0 + SBUF;
+  94   3                      RxdState = IsACKDataLen;
+  95   3                      break;
+  96   3                  case IsACKDataLen:
+  97   3                      RxdData.DataLen = SBUF;
+  98   3                      RxdLenCount = SBUF;
+  99   3                      Sum += SBUF;
+ 100   3                      RxdState = IsACKData;
+ 101   3                      break;
+ 102   3                  case IsACKData:
+ 103   3                      if(RxdLenCount){
+ 104   4                          RxdData.DataBuf[RxdData.DataLen - RxdLenCount] = SBUF;
+ 105   4                          Sum += SBUF;
+ 106   4                          RxdLenCount --;
+ 107   4                          RxdState = IsACKData;
+ 108   4                      }else{//没有数据,发送校验字节
+ 109   4                          RxdData.CheckByte = SBUF;
+ 110   4                          RxdState = IsACKHeader0;
+ 111   4                          RxdData.State = Rxd_CheckByteOk;
+ 112   4                     }
+ 113   3                      break;
+ 114   3      /*
+ 115   3                  case IsACKCheckByte:
+ 116   3                      RxdData.CheckByte = SBUF;
+C51 COMPILER V7.20   SERIAL                                                                08/04/2007 17:20:09 PAGE 3   
+
+ 117   3                      RxdState = IsACKHeader0;
+ 118   3                      RxdData.State = Rxd_CheckByteOk;
+ 119   3                      break;
+ 120   3      */
+ 121   3                  default:
+ 122   3                      break;
+ 123   3              }
+ 124   2          }
+ 125   1      //处理发送数据
+ 126   1          if(TI){
+ 127   2              TI=0;
+ 128   2              switch (TxdState){
+ 129   3                  case IsCMDHeader0:
+ 130   3                      TxdData.State = Txd_Sending;
+ 131   3                      SBUF = TxdHeader0;
+ 132   3                      TxdState = IsCMD;
+ 133   3      //                Delayms(1);
+ 134   3                      break;
+ 135   3                  case IsCMD:
+ 136   3                      SBUF = TxdData.CMD;
+ 137   3                      TxdState = IsCMDDataLen;
+ 138   3      //                Delayms(1);
+ 139   3                      break;
+ 140   3                  case IsCMDDataLen:
+ 141   3                      SBUF = TxdData.DataLen;
+ 142   3                      TxdLenCount = TxdData.DataLen;
+ 143   3                      TxdState = IsCMDData;
+ 144   3      //                Delayms(1);
+ 145   3                      break;
+ 146   3                  case IsCMDData:
+ 147   3                      if(TxdLenCount){
+ 148   4                          SBUF = TxdData.DataBuf[TxdData.DataLen - TxdLenCount];
+ 149   4                          TxdLenCount --;
+ 150   4                          TxdState = IsCMDData;
+ 151   4                      }else{//没有数据,那么接下来是校验字节
+ 152   4                          SBUF = TxdData.CheckByte;
+ 153   4                          TxdData.State = Txd_Empty;
+ 154   4                          TxdState = IsCMDIdle;
+ 155   4                      }
+ 156   3      //                Delayms(1);
+ 157   3                      break;
+ 158   3      /*
+ 159   3                  case IsCMDCheckByte:
+ 160   3                      SBUF = TxdData.CheckByte;
+ 161   3                      TxdData.State = Txd_Empty;
+ 162   3                      TxdState = IsCMDIdle;
+ 163   3                      break;
+ 164   3      */
+ 165   3                  case IsCMDIdle://不太可能进入的状态
+ 166   3                      TxdData.State = Txd_Empty;
+ 167   3                      break;
+ 168   3                  default:
+ 169   3                      break;
+ 170   3              }
+ 171   2          }
+ 172   1      }
+ 173          void StartTXD(void)
+ 174          {
+ 175   1          //启动发送
+ 176   1          TxdState = IsCMDHeader0;
+ 177   1          TxdData.State = Txd_Ready;
+ 178   1          TI = 1;
+C51 COMPILER V7.20   SERIAL                                                                08/04/2007 17:20:09 PAGE 4   
+
+ 179   1      }
+ 180          void InitSerial(void)//串口初始化
+ 181          {
+ 182   1      
+ 183   1          T2MOD = 0x00;
+ 184   1          TCLK = 1;
+ 185   1          RCLK = 1;
+ 186   1          EXEN2 = 0;
+ 187   1          C_T2 = 0;
+ 188   1          CP_RL2 = 0;
+ 189   1          RCAP2H = T2InitData/256;
+ 190   1          RCAP2L = T2InitData%256;
+ 191   1          TR2 = 1;
+ 192   1          SCON = 0x50;
+ 193   1          ES = 1;
+ 194   1      }
+ 195          
+ 196          void InitSerialBuffer(void)//串口缓冲区初始化
+ 197          {
+ 198   1          //接收处于等待帧头状态
+ 199   1          RxdState = IsACKHeader0;
+ 200   1          RxdData.State = Rxd_Empty;
+ 201   1          //发送处于空闲状态
+ 202   1          TxdState = IsCMDIdle;
+ 203   1          TxdData.State = Txd_Empty;
+ 204   1      }
+ 205          
+ 206          /*
+ 207          bit getch(unsigned char *ch) //从串口缓冲区读1字节数据
+ 208          {
+ 209              //ES=0;
+ 210              if(inRxBuf==outRxBuf) {ES=1;return 0;}          //RxBuf Empty
+ 211              *ch=*outRxBuf;  outRxBuf++;
+ 212              if(outRxBuf==RxBuf+LenRxBuf) outRxBuf=RxBuf;
+ 213              //ES=1;
+ 214              return 1;
+ 215          }
+ 216          */
+ 217          /*
+ 218          void PrintChar(U8 ch) //显示字符
+ 219          {
+ 220              ES =0; //关闭串口中断
+ 221              SBUF =      ch;
+ 222              while (!TI);
+ 223              TI = 0;
+ 224              ES = 1;//重新打开串口中断
+ 225          }
+ 226          
+ 227          void PrintByte(U8 Byte) // 以十六进制格式显示1个字节数据
+ 228          {
+ 229                  U8 c;
+ 230                  c = Byte;
+ 231                  c = c>>4;
+ 232                  if(c < 0x0A){
+ 233                      PrintChar(c+'0');
+ 234                  }else{
+ 235                      PrintChar(c+'A'-0x0A);
+ 236                  }
+ 237                  c=Byte;c=c&0x0F;
+ 238          
+ 239                  if(c < 0x0A){
+ 240                      PrintChar(c+'0');
+C51 COMPILER V7.20   SERIAL                                                                08/04/2007 17:20:09 PAGE 5   
+
+ 241                  }else{
+ 242                      PrintChar(c+'A'-0x0A);
+ 243                  }
+ 244          }
+ 245          
+ 246          */
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    259    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     37    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,134 @@
+C51 COMPILER V8.16   MENUMEASURE                                                           12/15/2008 14:30:10 PAGE 1   
+
+
+C51 COMPILER V8.16, COMPILATION OF MODULE MENUMEASURE
+OBJECT MODULE PLACED IN .\Obj\MenuMeasure.obj
+COMPILER INVOKED BY: d:\Keil\C51\BIN\C51.EXE Src\MenuMeasure.C BROWSE DEBUG OBJECTEXTEND PRINT(.\Lst\MenuMeasure.lst) OB
+                    -JECT(.\Obj\MenuMeasure.obj)
+
+line level    source
+
+   1          /******************************************************************************
+   2           * MenuMeasure.C - "测量"菜单
+   3           *
+   4          
+   5           *
+   6           * DESCRIPTION: -
+   7           *
+   8           * modification history
+   9           * --------------------
+  10           * 01a, 04/sep/2007, 梁炎昌 written
+  11           * --------------------
+  12           ******************************************************************************/
+  13          #include "CPU.H"
+  14          #include "Ks0108.H"
+  15          #include "Menu.H"
+  16          
+  17          //测量
+  18          //Bar型菜单
+  19          void DispMenuMeasureInit()
+  20          {
+  21   1      //----------------------
+  22   1          GUI_Clear();
+  23   1      //--------------------
+  24   1          BarMenu = &MenuMeasure[language];
+  25   1      //--------------------
+  26   1      
+  27   1          ItemNum = (*BarMenu).TextNum;
+  28   1          DispItem = (*BarMenu).Text;
+  29   1      
+  30   1          //用户的初始化代码请放在这里
+  31   1      
+  32   1          //显示按键对应的文字提示,1-->"进入"
+  33   1      
+  34   1          GUI_DispStringAtBar(*(Tip[language].Text+1),0,Enter_PosY,126,GUI_TA_HCENTER);
+  35   1      
+  36   1          BarMenuInit();
+  37   1      }
+  38          
+  39          
+  40          
+  41          void DispMenuMeasureUp()
+  42          {
+  43   1      //-----------
+  44   1          PUSH();
+  45   1      //-------------------
+  46   1          GUI_Clear();
+  47   1          switch(Item){
+  48   2              case 0:
+  49   2                  break;
+  50   2              case 1:
+  51   2                  break;
+  52   2              case 2:
+  53   2                  break;
+  54   2              case 3:
+C51 COMPILER V8.16   MENUMEASURE                                                           12/15/2008 14:30:10 PAGE 2   
+
+  55   2                 break;
+  56   2              case 4:
+  57   2                  break;
+  58   2              case 5:
+  59   2                  break;
+  60   2              case 6:
+  61   2                  break;
+  62   2              case 7:
+  63   2                  break;
+  64   2              case 8:
+  65   2                  break;
+  66   2              case 9:
+  67   2                  break;
+  68   2              case 10:
+  69   2                  break;
+  70   2              case 11:
+  71   2                  break;
+  72   2              case 12:
+  73   2                  break;
+  74   2              case 13:
+  75   2                  break;
+  76   2              case 14:
+  77   2                  break;
+  78   2              case 15:
+  79   2                  break;
+  80   2              case 16:
+  81   2                  break;
+  82   2              case 17:
+  83   2                  break;
+  84   2              default:
+  85   2                  break;
+  86   2          }
+  87   1          GUI_Clear();
+  88   1      //-------------------
+  89   1          POP();
+  90   1      //-------------------
+  91   1      
+  92   1      }
+  93          void DispMenuMeasureDown()
+  94          {
+  95   1          POP();
+  96   1      }
+  97          
+  98          void DispMenuMeasureLeft()
+  99          {
+ 100   1          BarMenuLeft();
+ 101   1      }
+ 102          void DispMenuMeasureRight()
+ 103          {
+ 104   1          BarMenuRight();
+ 105   1      }
+ 106          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    113    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+C51 COMPILER V8.16   MENUMEASURE                                                           12/15/2008 14:30:10 PAGE 3   
+
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

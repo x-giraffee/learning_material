@@ -1,0 +1,254 @@
+C51 COMPILER V7.20   BITMAP                                                                08/04/2007 17:20:12 PAGE 1   
+
+
+C51 COMPILER V7.20, COMPILATION OF MODULE BITMAP
+OBJECT MODULE PLACED IN .\Obj\BitMap.obj
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.EXE Src\BitMap.C LARGE BROWSE DEBUG OBJECTEXTEND PRINT(.\Lst\BitMap.lst) OBJECT
+                    -(.\Obj\BitMap.obj)
+
+line level    source
+
+   1          //位重新定义文件
+   2          #include "CPU.H"
+   3          #include "K1_Adapter.H"
+   4          //位交换表格,因为电路上74HC273的数据线交叉了
+   5          /*
+   6          AD0---Bit7
+   7          AD1---Bit6
+   8          AD2---Bit5
+   9          AD3---Bit4
+  10          AD4---Bit3
+  11          AD5---Bit2
+  12          AD6---Bit1
+  13          AD7---Bit0
+  14          */
+  15          U8 code OutPutDataBitSwap[] = {
+  16          0x00,0x80,0x40,0xC0,0x20,0xA0,0x60,0xE0,0x10,0x90,0x50,0xD0,0x30,0xB0,0x70,0xF0,
+  17          0x08,0x88,0x48,0xC8,0x28,0xA8,0x68,0xE8,0x18,0x98,0x58,0xD8,0x38,0xB8,0x78,0xF8,
+  18          0x04,0x84,0x44,0xC4,0x24,0xA4,0x64,0xE4,0x14,0x94,0x54,0xD4,0x34,0xB4,0x74,0xF4,
+  19          0x0C,0x8C,0x4C,0xCC,0x2C,0xAC,0x6C,0xEC,0x1C,0x9C,0x5C,0xDC,0x3C,0xBC,0x7C,0xFC,
+  20          0x02,0x82,0x42,0xC2,0x22,0xA2,0x62,0xE2,0x12,0x92,0x52,0xD2,0x32,0xB2,0x72,0xF2,
+  21          0x0A,0x8A,0x4A,0xCA,0x2A,0xAA,0x6A,0xEA,0x1A,0x9A,0x5A,0xDA,0x3A,0xBA,0x7A,0xFA,
+  22          0x06,0x86,0x46,0xC6,0x26,0xA6,0x66,0xE6,0x16,0x96,0x56,0xD6,0x36,0xB6,0x76,0xF6,
+  23          0x0E,0x8E,0x4E,0xCE,0x2E,0xAE,0x6E,0xEE,0x1E,0x9E,0x5E,0xDE,0x3E,0xBE,0x7E,0xFE,
+  24          0x01,0x81,0x41,0xC1,0x21,0xA1,0x61,0xE1,0x11,0x91,0x51,0xD1,0x31,0xB1,0x71,0xF1,
+  25          0x09,0x89,0x49,0xC9,0x29,0xA9,0x69,0xE9,0x19,0x99,0x59,0xD9,0x39,0xB9,0x79,0xF9,
+  26          0x05,0x85,0x45,0xC5,0x25,0xA5,0x65,0xE5,0x15,0x95,0x55,0xD5,0x35,0xB5,0x75,0xF5,
+  27          0x0D,0x8D,0x4D,0xCD,0x2D,0xAD,0x6D,0xED,0x1D,0x9D,0x5D,0xDD,0x3D,0xBD,0x7D,0xFD,
+  28          0x03,0x83,0x43,0xC3,0x23,0xA3,0x63,0xE3,0x13,0x93,0x53,0xD3,0x33,0xB3,0x73,0xF3,
+  29          0x0B,0x8B,0x4B,0xCB,0x2B,0xAB,0x6B,0xEB,0x1B,0x9B,0x5B,0xDB,0x3B,0xBB,0x7B,0xFB,
+  30          0x07,0x87,0x47,0xC7,0x27,0xA7,0x67,0xE7,0x17,0x97,0x57,0xD7,0x37,0xB7,0x77,0xF7,
+  31          0x0F,0x8F,0x4F,0xCF,0x2F,0xAF,0x6F,0xEF,0x1F,0x9F,0x5F,0xDF,0x3F,0xBF,0x7F,0xFF,
+  32          };
+  33          
+  34          //7个输出口数据备份
+  35          U8 Latch0_Port_Data;
+  36          U8 Latch1_Port_Data;
+  37          U8 Latch2_Port_Data;
+  38          U8 Latch3_Port_Data;
+  39          U8 Latch4_Port_Data;
+  40          U8 Latch5_Port_Data;
+  41          U8 Latch6_Port_Data;
+  42          U8 Latch7_Port_Data;
+  43          
+  44          //内部端口数据
+  45          //最大数据位数  K1 = 2+6+10+2 = 20 (A B X Y)
+  46          #define MAX_BIT_LEN  20
+  47          U32 Internal_Port_Data;
+  48          
+  49          U32 Internal_Port_Data_Backup;
+  50          /*
+  51          Internal_Port_Data的位定义
+  52          0       XDALM  A01  XS51.5                          Latch0_Port_Data @BIT1
+  53          1       ZDALM  A05  XS52.5                          Latch0_Port_Data @BIT5
+  54          2       #OV1  B00  XS54.11  (XS34)                  Latch2_Port_Data @BIT0
+C51 COMPILER V7.20   BITMAP                                                                08/04/2007 17:20:12 PAGE 2   
+
+  55          3       #OV2  B01  XS54.3   (XS35)                  Latch2_Port_Data @BIT1
+  56          4       #OV4  B02  XS54.12  (XS36)                  Latch2_Port_Data @BIT2
+  57          5       #OV8  B03  XS54.4   (XS37)                  Latch2_Port_Data @BIT3
+  58          6       #ESP1 B04  XS50.7                           Latch2_Port_Data @BIT4
+  59          7       #QPI  B05  XS50.8                           Latch2_Port_Data @BIT5
+  60          8       T05 X00   XS54.9                            Latch5_Port_Data @BIT0  @BIT1
+  61          9       T06 X01   XS54.1                            Latch5_Port_Data @BIT2  @BIT3
+  62          10      T07 X02   XS54.10                           Latch5_Port_Data @BIT4  @BIT5
+  63          11      T08 X03   XS54.2                            Latch5_Port_Data @BIT6  @BIT7
+  64          12      T01 X04   XS50.5                            Latch6_Port_Data @BIT0  @BIT1
+  65          13      T02 X05   XS50.18                           Latch6_Port_Data @BIT2  @BIT3
+  66          14      T03 X06   XS54.6                            Latch6_Port_Data @BIT4  @BIT5
+  67          15      T04 X07   XS54.19                           Latch6_Port_Data @BIT6  @BIT7
+  68          16      #DECZ X08   XS50.20                         Latch7_Port_Data @BIT0  @BIT1
+  69          17      #DECX X09   XS50.21                         Latch7_Port_Data @BIT2  @BIT3
+  70          18      XPC+ Y00 @bit4                              Latch7_Port_Data @BIT4
+  71          19      ZPC+ Y02 @bit6                              Latch7_Port_Data @BIT6
+  72          */
+  73          
+  74          struct PortMap {
+  75              U16 Port_Addr;
+  76              U8 * Port_Data;
+  77              U8 BitOne;   //要求置一时写入的值 清零时把该值取非写入
+  78              U8 BitMask;  //屏蔽位
+  79          };
+  80          //BitOne 通常跟BitMask 一样,
+  81          //但由于X型输入如果输出一个1 那么需要设置为10 (关断接地,接上24V)
+  82          //如果输出一个0 那么需要设置为01 (关断24V,接上接地)
+  83          /*
+  84          
+  85          A
+  86            无驱动  1
+  87              驱动  0
+  88          B
+  89            无驱动  0
+  90              驱动  1
+  91          
+  92          X
+  93             1驱动  1
+  94             0驱动  0
+  95             无驱动  1(有上拉时)  0 (无上拉时)
+  96          
+  97          Y
+  98          A B 驱动,则设置273的对应位为0  不驱动设置为1
+  99          X 型较为特殊,  1驱动 对应两位设置为10 (0x02)  0驱动  对应两位设置为01  (0x01)  无驱动  设置为11 (0x03)
+ 100          以下位映射中没有处理X的无驱动方式,无驱动方式可以用来确认哪些位有上拉,那些没有上来
+ 101          
+ 102          */
+ 103          
+ 104          code struct PortMap PortMap[] =
+ 105          {
+ 106          {Latch0_Port_Addr,&Latch0_Port_Data,(0x00<<1),(0x01<<1)},//A  驱动  0--->k1读到的数值是 1
+ 107          {Latch0_Port_Addr,&Latch0_Port_Data,(0x00<<5),(0x01<<5)},
+ 108          {Latch2_Port_Addr,&Latch2_Port_Data,(0x01),   (0x01)   },//B  驱动  1--->k1读到的数值是 0
+ 109          {Latch2_Port_Addr,&Latch2_Port_Data,(0x01<<1),(0x01<<1)},
+ 110          {Latch2_Port_Addr,&Latch2_Port_Data,(0x01<<2),(0x01<<2)},
+ 111          {Latch2_Port_Addr,&Latch2_Port_Data,(0x01<<3),(0x01<<3)},
+ 112          {Latch2_Port_Addr,&Latch2_Port_Data,(0x01<<4),(0x01<<4)},
+ 113          {Latch2_Port_Addr,&Latch2_Port_Data,(0x01<<5),(0x01<<5)},
+ 114          {Latch5_Port_Addr,&Latch5_Port_Data,(0x01)   ,(0x03)   },//X型0驱动  0x01
+ 115          {Latch5_Port_Addr,&Latch5_Port_Data,(0x01<<2),(0x03)<<2},
+ 116          {Latch5_Port_Addr,&Latch5_Port_Data,(0x01<<4),(0x03)<<4},
+C51 COMPILER V7.20   BITMAP                                                                08/04/2007 17:20:12 PAGE 3   
+
+ 117          {Latch5_Port_Addr,&Latch5_Port_Data,(0x01<<6),(0x03)<<6},
+ 118          {Latch6_Port_Addr,&Latch6_Port_Data,(0x01)   ,(0x03)   },
+ 119          {Latch6_Port_Addr,&Latch6_Port_Data,(0x01<<2),(0x03)<<2},
+ 120          {Latch6_Port_Addr,&Latch6_Port_Data,(0x01<<4),(0x03)<<4},
+ 121          {Latch6_Port_Addr,&Latch6_Port_Data,(0x01<<6),(0x03)<<6},
+ 122          {Latch7_Port_Addr,&Latch7_Port_Data,(0x01)   ,(0x03)   },
+ 123          {Latch7_Port_Addr,&Latch7_Port_Data,(0x01<<2),(0x03)<<2},
+ 124          {Latch7_Port_Addr,&Latch7_Port_Data,(0x01<<4),(0x01<<4)},
+ 125          {Latch7_Port_Addr,&Latch7_Port_Data,(0x01<<6),(0x01<<6)},
+ 126          };
+ 127          //位功能 位置提示
+ 128          code U8 *ErrBitDispStr[] = {
+ 129          {"XDALM  XS51.5 "},
+ 130          {"ZDALM  XS52.5 "},
+ 131          {"#OV1   XS54.11"},
+ 132          {"#OV2   XS54.3 "},
+ 133          {"#OV4   XS54.12"},
+ 134          {"#OV8   XS54.4 "},
+ 135          {"#ESP1  XS50.7 "},
+ 136          {"#QPI   XS50.8 "},
+ 137          {"T05    XS54.9 "},
+ 138          {"T06    XS54.1 "},
+ 139          {"T07    XS54.10"},
+ 140          {"T08    XS54.2 "},
+ 141          {"T01    XS50.5 "},
+ 142          {"T02    XS50.18"},
+ 143          {"T03    XS54.6 "},
+ 144          {"T04    XS54.19"},
+ 145          {"#DECZ  XS50.20"},
+ 146          {"#DECX  XS50.21"},
+ 147          {"XPC+"},
+ 148          {"ZPC+"},
+ 149          };
+ 150          ////Latch Port 数据的更新
+ 151          //Force 0--->根据差异初始化
+ 152          //1  强制初始化
+ 153          void UpDataPort(Bool Force)
+ 154          {
+ 155   1          U32 Diff;
+ 156   1          U32 WhitchBit;
+ 157   1          U32 SetBitData;
+ 158   1          U8 PortData;
+ 159   1          U8 Mask;
+ 160   1          //通过异或检查出差异部分,单单更新差异部分,减少更新内容
+ 161   1          if(!Force){
+ 162   2              Diff = Internal_Port_Data^Internal_Port_Data_Backup;
+ 163   2          }else{
+ 164   2              Diff = Internal_Port_Data;
+ 165   2          }
+ 166   1          for(WhitchBit = 0; WhitchBit < MAX_BIT_LEN; WhitchBit++){
+ 167   2              if(((Diff>>WhitchBit)&0x01) == 0x01){//如果该位为1
+ 168   3                  SetBitData = (Internal_Port_Data>>WhitchBit)&0x01;
+ 169   3                  PortData = *(PortMap[WhitchBit].Port_Data);
+ 170   3                  Mask = PortMap[WhitchBit].BitMask;
+ 171   3                  PortData &= ~Mask;//根据BitMask清零
+ 172   3                  if(SetBitData){
+ 173   4                      PortData |= PortMap[WhitchBit].BitOne;//置为1
+ 174   4                  }else{
+ 175   4                      PortData |= (~PortMap[WhitchBit].BitOne&Mask);//置为0
+ 176   4                  }
+ 177   3                  *(PortMap[WhitchBit].Port_Data) = PortData;
+ 178   3                  XBYTE[PortMap[WhitchBit].Port_Addr] = OutPutDataBitSwap[PortData];//更新74HC273
+C51 COMPILER V7.20   BITMAP                                                                08/04/2007 17:20:12 PAGE 4   
+
+ 179   3              }
+ 180   2          }
+ 181   1          Internal_Port_Data_Backup = Internal_Port_Data;
+ 182   1      }
+ 183          //
+ 184          void SetPortData(U32 Port_Data,Bool Force)
+ 185          {
+ 186   1          Internal_Port_Data = ~Port_Data; //电路是以0驱动的
+ 187   1          Internal_Port_Data &=0x0FFFFF;   //仅仅保留20Bit
+ 188   1          UpDataPort(Force);
+ 189   1      }
+ 190          
+ 191          //关断所有输出
+ 192          void CutOffAllPort(void)
+ 193          {
+ 194   1          XBYTE[Latch0_Port_Addr] = 0xFF;
+ 195   1          XBYTE[Latch1_Port_Addr] = 0xFF;
+ 196   1          XBYTE[Latch2_Port_Addr] = 0xFF;
+ 197   1          XBYTE[Latch3_Port_Addr] = 0xFF;
+ 198   1          XBYTE[Latch4_Port_Addr] = 0xFF;
+ 199   1          XBYTE[Latch5_Port_Addr] = 0xFF;
+ 200   1          XBYTE[Latch6_Port_Addr] = 0xFF;
+ 201   1          XBYTE[Latch7_Port_Addr] = 0xFF;
+ 202   1      
+ 203   1      }
+ 204          
+ 205          //初始化端口,关断所有输出
+ 206          void InitPortData(void)
+ 207          {
+ 208   1          Latch0_Port_Data = 0xFF;
+ 209   1          Latch1_Port_Data = 0xFF;
+ 210   1          Latch2_Port_Data = 0xFF;
+ 211   1          Latch3_Port_Data = 0xFF;
+ 212   1          Latch4_Port_Data = 0xFF;
+ 213   1          Latch5_Port_Data = 0xFF;
+ 214   1          Latch6_Port_Data = 0xFF;
+ 215   1          Latch7_Port_Data = 0xFF;
+ 216   1          CutOffAllPort();
+ 217   1      
+ 218   1          Internal_Port_Data_Backup = 0x3FFFF;
+ 219   1          Internal_Port_Data = 0x3FFFF;
+ 220   1      }
+ 221          
+ 222          
+ 223          
+ 224          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    643    ----
+   CONSTANT SIZE    =    736    ----
+   XDATA SIZE       =     16      14
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       2
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
